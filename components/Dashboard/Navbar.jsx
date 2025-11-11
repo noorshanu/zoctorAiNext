@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaUser, FaUserCircle } from 'react-icons/fa';
 import { MdLogout, MdSettings } from 'react-icons/md';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../AuthProvider';
 import { BsTelegram } from "react-icons/bs";
 import { FaTwitter } from "react-icons/fa";
@@ -10,7 +10,7 @@ import { FaInstagram } from "react-icons/fa6";
 
 const Navbar = () => { 
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAuthenticated, logout } = useAuth();
   const { userId } = useParams();
   // We'll store the user's first name in local state
@@ -23,19 +23,19 @@ const Navbar = () => {
       setFirstName(storedName);
     } else {
       setFirstName("");
-      navigate("/login");
+      router.push("/login");
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, router]);
 
   // This function clears user data from localStorage and redirects to login
   const handleLogout = async () => {
     try {
       setDropdownOpen(false); // Close dropdown before logout
       await logout();
-      navigate("/login");
+      router.push("/login");
     } catch (error) {
       console.error('Logout error:', error);
-      navigate("/login");
+      router.push("/login");
     }
   };
 

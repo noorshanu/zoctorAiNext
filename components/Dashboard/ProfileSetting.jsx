@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "next/navigation";
 import { fetchUserInfo, updateUserInfo } from "../../utils/api";
 import axios from "axios";
 import { CiEdit } from "react-icons/ci";

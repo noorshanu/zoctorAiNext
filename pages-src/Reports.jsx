@@ -3,11 +3,8 @@
 
 import Layout from '../components/Dashboard/Layout'
 import FileUpload from '../components/Dashboard/FileUpload'
-import { useParams } from 'react-router-dom'
 
-function Reports() {
-  const { userId } = useParams()
-
+function Reports({ userId }) {
   return (
     <>
     <Layout>

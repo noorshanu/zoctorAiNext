@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { FiFileText, FiAward, FiClock, FiShield, FiTrendingUp, FiUsers } from 'react-icons/fi';
 import Layout from '../components/Dashboard/Layout';
 
@@ -28,7 +28,7 @@ function Dashboard() {
               Get instant insights from your medical reports using advanced AI analysis
             </p>
             <Link
-              to={userId ? `/reports/${userId}` : '/login'}
+              href={userId ? `/reports/${userId}` : '/login'}
               className="inline-flex text-[#fff] items-center px-6 py-3 border border-transparent text-base font-medium bg-prime rounded-md text-indigo-700 bg-white hover:bg-blue-50 transition-colors duration-300"
             >
               <FiFileText className="w-5 h-5 mr-2" />
@@ -127,7 +127,7 @@ function Dashboard() {
         {/* Call to Action */}
         <div className="text-center mt-16">
           <Link
-            to={userId ? `/reports/${userId}` : '/login'}
+            href={userId ? `/reports/${userId}` : '/login'}
             className="inline-flex text-[#fff] bg-prime items-center px-8 py-4 border border-transparent text-lg font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-300"
           >
             Start Your Analysis

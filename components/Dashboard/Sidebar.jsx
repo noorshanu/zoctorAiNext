@@ -3,11 +3,13 @@ import { useState, useEffect } from 'react';
 import { FaHome, FaUser, FaBars, FaTimes } from 'react-icons/fa';
 import { IoAnalyticsOutline } from "react-icons/io5";
 import { FiFileText } from "react-icons/fi";
-import { NavLink } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [userId, setUserId] = useState(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     // Get userId from localStorage when component mounts
@@ -16,6 +18,12 @@ const Sidebar = () => {
       setUserId(storedUserId);
     }
   }, []);
+
+  const isActive = (href) => {
+    if (!href) return false;
+    // Exact match or starts with for nested routes
+    return pathname === href || pathname.startsWith(href + '/');
+  };
 
   return (
     <>
@@ -46,59 +54,51 @@ const Sidebar = () => {
         </div>
 
         <nav className="flex flex-col gap-2 p-4">
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
-              ${isActive 
+          <Link
+            href="/dashboard"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
+              ${isActive('/dashboard') 
                 ? 'bg-[#1a1a1a] text-white shadow-md' 
-                : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`
-            }
+                : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`}
           >
             <FaHome className="text-xl" /> 
             <span className="font-medium">Dashboard</span>
-          </NavLink>
+          </Link>
 
           {userId && (
-            <NavLink
-              to={`/profile/${userId}`}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
-                ${isActive 
+            <Link
+              href={`/profile/${userId}`}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
+                ${isActive(`/profile/${userId}`) 
                   ? 'bg-[#1a1a1a] text-white shadow-md' 
-                  : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`
-              }
+                  : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`}
             >
               <FaUser className="text-xl" />
               <span className="font-medium">Profile</span>
-            </NavLink>
+            </Link>
           )}
 
-          <NavLink
-            to={`/your-report/${userId}`}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
-              ${isActive 
+          <Link
+            href={userId ? `/your-report/${userId}` : '#'}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
+              ${isActive(`/your-report/${userId}`) 
                 ? 'bg-[#1a1a1a] text-white shadow-md' 
-                : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`
-            }
+                : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`}
           >
             <FiFileText className="text-xl" />
             <span className="font-medium">Your reports</span>
-          </NavLink>
+          </Link>
 
-          <NavLink
-            to={`/reports/${userId}`}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
-              ${isActive 
+          <Link
+            href={userId ? `/reports/${userId}` : '#'}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
+              ${isActive(`/reports/${userId}`) 
                 ? 'bg-[#1a1a1a] text-white shadow-md' 
-                : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`
-            }
+                : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`}
           >
             <IoAnalyticsOutline className="text-xl" />
             <span className="font-medium">Get analysis</span>
-          </NavLink>
+          </Link>
         </nav>
       </div>
     </>

@@ -5,7 +5,7 @@ export const metadata = {
   description: "Set a new password for your ZoctorAI account.",
 };
 
-export default function Page() {
-  return <ResetPassword />;
+export default function Page({ params }) {
+  return <ResetPassword token={params.token} />;
 }
 

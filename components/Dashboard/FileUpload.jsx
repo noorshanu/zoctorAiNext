@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import { FiUpload, FiFile, FiX, FiCheck, FiAlertCircle, FiDownload } from "react-icons/fi";
 import { AiOutlineFilePdf } from "react-icons/ai";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -180,7 +180,7 @@ const generatePDF = async (result, patientInfo) => {
 };
 
 const FileUpload = ({ userId }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [analysisResults, setAnalysisResults] = useState([]);
   const [userQuestion, setUserQuestion] = useState("");
@@ -199,14 +199,14 @@ const FileUpload = ({ userId }) => {
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     if (!token) {
-      navigate("/login");
+      router.push("/login");
       return;
     }
     if (!userId) {
-      navigate("/dashboard");
+      router.push("/dashboard");
       return;
     }
-  }, [userId, navigate]);
+  }, [userId, router]);
 
   useEffect(() => {
     const fetchPatientInfo = async () => {
@@ -356,7 +356,7 @@ const FileUpload = ({ userId }) => {
       const token = localStorage.getItem("accessToken");
       if (!token || !userId) {
         setErrorMessage("Authentication required");
-        navigate("/login");
+        router.push("/login");
         return;
       }
 
@@ -420,11 +420,11 @@ const FileUpload = ({ userId }) => {
         400: "Invalid file format or request",
         401: () => {
           setErrorMessage("Session expired. Please log in again.");
-          navigate("/login");
+          router.push("/login");
         },
         403: () => {
           setErrorMessage("Access denied. Please check your permissions.");
-          navigate("/login");
+          router.push("/login");
         },
         413: "File size too large. Maximum size is 10MB.",
         500: "Server error. Please try again later.",

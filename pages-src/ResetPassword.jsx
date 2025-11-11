@@ -1,6 +1,6 @@
 "use client";
 import  { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import axios from "axios";
 import NavbarLight from "../components/NavbarLight";
@@ -8,9 +8,8 @@ import Footer from "../components/Footer";
 
 const API_BASE_URL = "http://localhost:8000";
 
-const ResetPassword = () => {
-  const { token } = useParams();
-  const navigate = useNavigate();
+const ResetPassword = ({ token }) => {
+  const router = useRouter();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -44,7 +43,7 @@ const ResetPassword = () => {
       setMessage(response.data.msg || "Password changed successfully!");
       // Optionally, redirect to the login page after a short delay
       setTimeout(() => {
-        navigate("/login");
+        router.push("/login");
       }, 2000);
     } catch (err) {
       setError(

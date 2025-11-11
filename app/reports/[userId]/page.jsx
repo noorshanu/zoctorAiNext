@@ -5,7 +5,7 @@ export const metadata = {
   description: "View AI-analyzed medical reports and summaries.",
 };
 
-export default function Page() {
-  return <Reports />;
+export default function Page({ params }) {
+  return <Reports userId={params.userId} />;
 }
 

@@ -1,15 +1,14 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useSearchParams } from 'next/navigation';
 import NavbarLight from '../components/NavbarLight';
 import Footer from '../components/Footer';
 import axios from 'axios';
 
 const EmailVerify = () => {
-  const { search } = useLocation();
-  const queryParams = new URLSearchParams(search);
-  const token = queryParams.get('token');
-  const email = queryParams.get('email');
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
+  const email = searchParams.get('email');
 
   const [status, setStatus] = useState('Verifying...');
 

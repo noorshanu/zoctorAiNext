@@ -6,7 +6,6 @@ import Layout from '../components/Dashboard/Layout';
 import axios from 'axios';
 import { FiFileText, FiDownload, FiEye, FiAlertCircle, FiX, FiTrash2 } from 'react-icons/fi';
 import { FiFilePlus } from "react-icons/fi";
-import { useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip } from 'react-tooltip';
@@ -77,7 +76,6 @@ function YourReportPage() {
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { userId } = useParams();
   const [selectedReport, setSelectedReport] = useState(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState({ show: false, reportId: null });
@@ -85,7 +83,7 @@ function YourReportPage() {
 
   useEffect(() => {
     fetchReports();
-  }, [userId]);
+  }, []);
 
   const fetchReports = async () => {
     try {
@@ -93,7 +91,6 @@ function YourReportPage() {
       
       console.log("Debug - Auth Info:", { 
         hasToken: !!token, 
-        userId,
         tokenPreview: token ? `${token.slice(0, 10)}...` : 'no token'
       });
 
