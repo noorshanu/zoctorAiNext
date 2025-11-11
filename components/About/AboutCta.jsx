@@ -1,4 +1,4 @@
-import React from "react";
+"use client";
 
 function AboutCta() {
   return (
@@ -10,7 +10,7 @@ function AboutCta() {
           </h1>
 
           <p className=" font-sfpro pt-2 text-center px-7">
-            <strong className=" txt-grad">ZoctorAI</strong> we combine the power of artificial intelligence with the dedication of medical professionals to redefine healthcare. Whether it's a simple consultation or a complex treatment plan, we’re here to deliver exceptional results with unparalleled efficiency.
+            <strong className=" txt-grad">ZoctorAI</strong> we combine the power of artificial intelligence with the dedication of medical professionals to redefine healthcare. Whether it&apos;s a simple consultation or a complex treatment plan, we&apos;re here to deliver exceptional results with unparalleled efficiency.
           </p>
           <p className=" text-center font-sfpro">
           Experience the future of healthcare today—smarter, faster, better with ZoctorAI.

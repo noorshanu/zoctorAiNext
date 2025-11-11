@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from 'react';
 import { FaHome, FaUser, FaBars, FaTimes } from 'react-icons/fa';
 import { IoAnalyticsOutline } from "react-icons/io5";

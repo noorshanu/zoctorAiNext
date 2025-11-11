@@ -1,3 +1,4 @@
+"use client";
 /* eslint-disable react/prop-types */
 import { useState, useEffect, useCallback, useRef } from "react";
 import ReactMarkdown from "react-markdown";

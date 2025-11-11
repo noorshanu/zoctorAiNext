@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect } from 'react';
 import { FaUser, FaUserCircle } from 'react-icons/fa';
 import { MdLogout, MdSettings } from 'react-icons/md';
