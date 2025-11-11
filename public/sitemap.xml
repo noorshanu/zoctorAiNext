@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  
+  <!-- Homepage - Highest Priority -->
+  <url>
+    <loc>https://zoctorai.com/</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://zoctorai.com/images/logo.png</image:loc>
+      <image:title>ZoctorAI - AI-Powered Healthcare Solutions</image:title>
+    </image:image>
+  </url>
+  
+  <!-- Main Pages - High Priority -->
+  <url>
+    <loc>https://zoctorai.com/about</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>https://zoctorai.com/how-it-works</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- Contact and Support Pages -->
+  <url>
+    <loc>https://zoctorai.com/contactus</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://zoctorai.com/faq</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- Authentication Pages - Medium Priority -->
+  <url>
+    <loc>https://zoctorai.com/login</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://zoctorai.com/signup</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://zoctorai.com/forgot-password</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  
+  <!-- Legal Pages - Lower Priority -->
+  <url>
+    <loc>https://zoctorai.com/privacy-policy</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://zoctorai.com/terms-condition</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <!-- User-specific Pages - Lower Priority (not indexed for SEO) -->
+  <url>
+    <loc>https://zoctorai.com/dashboard</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.3</priority>
+  </url>
+  
+  <url>
+    <loc>https://zoctorai.com/email-verify</loc>
+    <lastmod>2025-01-27T00:00:00.000Z</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  
+</urlset>

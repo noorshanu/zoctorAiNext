@@ -1,0 +1,27 @@
+{
+  "name": "ZoctorAI - AI-Powered Healthcare Solutions",
+  "short_name": "ZoctorAI",
+  "description": "Revolutionizing healthcare with cutting-edge AI technology for medical diagnosis and patient care.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "images/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "images/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["health", "medical", "productivity"],
+  "lang": "en",
+  "dir": "ltr"
+}

@@ -1,0 +1,83 @@
+{
+  "profile": {
+    "title": "Profile Settings",
+    "saveChanges": "Save Changes",
+    "updating": "Updating...",
+    "profileCompletion": "Profile Completion",
+    "basicInfo": {
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "phoneNumber": "Phone Number",
+      "email": "Email",
+      "description": "Description"
+    },
+    "preferences": {
+      "title": "Additional Preferences",
+      "whatsapp": "Is this a WhatsApp number?",
+      "international": "Consider international treatment?",
+      "medicalTourism": "Interested in medical tourism?",
+      "callback": "Want ZoctorAI callback?"
+    },
+    "lifestyle": {
+      "title": "Lifestyle",
+      "smoking": "Do you smoke?",
+      "alcohol": "Do you consume alcohol?"
+    },
+    "yes": "Yes",
+    "no": "No"
+  },
+  "nav": {
+    "home": "Home",
+    "aboutUs": "About us",
+    "howItWorks": "How it works",
+    "contactUs": "Contact us",
+    "login": "Login",
+    "welcome": "Welcome, {{name}}",
+    "services": "Services",
+    "whyChooseUs": "Why Choose us"
+    },
+  "belowSec": {
+    "partnerships": "partnerships",
+    "hospitalText": "spanning globally recognized hospitals and medical institutions,",
+    "connectText": "connects you to seamless, affordable, and high-quality healthcare solutions",
+    "experience": "Experience best solution anytime, anywhere."
+  },
+  "services": {
+    "subtitle": "Effective solutions to your healthcare",
+    "title": "Why Choose ZoctorAI?",
+    "description": "Our next-gen AI platform has been crafted to make healthcare smarter, faster, and more accessible. Here's how we're redefining the healthcare experience",
+    "knowMore": "Know More",
+    "cards": {
+      "onDemand": {
+        "title": "On-Demand Healthcare",
+        "description": "Access world-class doctors and specialists for virtual consultations from the comfort of your home.",
+        "alt": "On-demand healthcare icon"
+      },
+      "assistance": {
+        "title": "24/7 Intelligent Assistance",
+        "description": "Whether you need physiotherapy or emergency support, ZoctorAI connects you with healthcare professionals round the clock.",
+        "alt": "24/7 assistance icon"
+      },
+      "scheduling": {
+        "title": "Effortless Appointment Scheduling",
+        "description": "Book, manage, and track appointments for yourself or your loved ones seamlessly through our platform.",
+        "alt": "Appointment scheduling icon"
+      },
+      "elderly": {
+        "title": "Empowering Elderly and Differently-Abled Care",
+        "description": "Designed to address mobility challenges, ZoctorAI makes healthcare truly inclusive with easy online consultations and personalized services.",
+        "alt": "Elderly care icon"
+      },
+      "aiPowered": {
+        "title": "AI-Powered",
+        "description": "Experience smooth, secure AI experience designed with your convenience in mind.",
+        "alt": "AI powered icon"
+      },
+      "global": {
+        "title": "Simplified Global Medical Access",
+        "description": "Need specialized treatment abroad? ZoctorAI connects you with top international healthcare providers, streamlining medical tourism.",
+        "alt": "Global medical access icon"
+      }
+    }
+  }
+} 

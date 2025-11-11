@@ -1,0 +1,513 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+@import url('https://fonts.cdnfonts.com/css/sf-pro-display');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Manrope-Regular";
+  src: url("/fonts/Manrope-Regular.ttf");
+}
+
+@font-face {
+  font-family: "Manrope-bold";
+  src: url("/fonts/Manrope-Bold.ttf");
+}
+
+@font-face {
+  font-family: "Manrope-SemiBold";
+  src: url("/fonts/Manrope-SemiBold.ttf");
+}
+
+@font-face {
+  font-family: "Manrope-Medium";
+  src: url("/fonts/Manrope-Medium.ttf");
+}
+
+@layer base {
+  .container-wrapper {
+    @apply max-w-[1240px] w-[90%] mx-auto;
+  }
+}
+
+.font-sfpro {
+  font-family: "SF Pro Display", sans-serif;
+}
+
+body {
+  background-color: #0e0e0e;
+  font-family: "Inter", sans-serif;
+  color: #fff;
+}
+.inter {
+  font-family: "Inter", sans-serif;
+}
+.css-1vx3a4p {
+  pointer-events: none;
+  width: 1200px;
+  height: 720px;
+  position: absolute;
+  top: 0%;
+  left: 50%;
+  -webkit-transform: translate(-50%, -50%);
+  -moz-transform: translate(-50%, -50%);
+  -ms-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+  background-image: radial-gradient(
+    ellipse at center,
+    #005eff42,
+    transparent 60%
+  );
+  z-index: -1;
+}
+
+.css-we {
+  pointer-events: none;
+  width: 800px;
+  height: 450px;
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  -webkit-transform: translate(-50%, -50%);
+  -moz-transform: translate(-50%, -50%);
+  -ms-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+  background-image: radial-gradient(
+    ellipse at center,
+    #005eff42,
+    transparent 60%
+  );
+  z-index: -1;
+}
+
+.css-wee {
+  pointer-events: none;
+  width: 800px;
+  height: 450px;
+  position: absolute;
+  top: 20%;
+  right: -40%;
+  -webkit-transform: translate(-50%, -50%);
+  -moz-transform: translate(-50%, -50%);
+  -ms-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+  background-image: radial-gradient(
+    ellipse at center,
+    #005eff42,
+    transparent 60%
+  );
+  z-index: -1;
+}
+
+.css-we3 {
+  pointer-events: none;
+  border-radius: 100px;
+  width: 500px;
+  height: 500px;
+  position: absolute;
+  top: 50%;
+  left: 40%;
+  -webkit-transform: translate(-50%, -50%);
+  -moz-transform: translate(-50%, -50%);
+  -ms-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+  background-image: radial-gradient(
+    ellipse at center,
+    #005eff42,
+    transparent 60%
+  );
+  z-index: -1;
+}
+
+@keyframes textShine {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+.txt-g {
+  background: linear-gradient(
+    to right,
+    #42149f 20%,
+    #bd9036 30%,
+    #e2a121 70%,
+    #5d22d3c0 80%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-fill-color: transparent;
+  background-size: 500% auto;
+  animation: textShine 5s ease-in-out infinite alternate;
+}
+
+.txt-grad {
+  background: -webkit-linear-gradient(
+    180deg,
+    #005dff 0%,
+    rgba(255, 255, 255, 1) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.btn-main {
+  background: linear-gradient(380deg, #005dff 100%, rgba(255, 255, 255, 1) 0%);
+}
+
+.img-hov:hover {
+  animation: rotate 1s linear;
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(180deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* nft card */
+.nft2 {
+  border-radius: 100% !important;
+}
+
+.nft {
+  user-select: none;
+
+  /* margin: 5rem auto; */
+  /* border: 1px solid #ffffff22; */
+  background-color: #282c34;
+  background-image: radial-gradient(
+    70.56% 70.56% at 50% 29.44%,
+    #3712812b 0%,
+    #1a1a1a 100%
+  );
+  box-shadow: 0 7px 20px 5px #00000088;
+  border-radius: 1.3rem;
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  overflow: hidden;
+  transition: 0.5s all;
+}
+
+.no-transition {
+  transition: none !important;
+}
+
+.nft hr {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #88888855;
+  margin-top: 0;
+}
+.nft ins {
+  text-decoration: none;
+}
+.nft .main {
+  display: flex;
+  flex-direction: column;
+  width: 90%;
+  padding: 1rem;
+}
+.nft .main .tokenImage {
+  border-radius: 0.5rem;
+  max-width: 100%;
+  height: 250px;
+  object-fit: cover;
+}
+.nft .main .description {
+  margin: 0.5rem 0;
+  color: #a89ec9;
+}
+.nft .main .tokenInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.nft .main .tokenInfo .price {
+  display: flex;
+  align-items: center;
+  color: #ee83e5;
+  font-weight: 700;
+}
+.nft .main .tokenInfo .price ins {
+  margin-left: -0.3rem;
+  margin-right: 0.5rem;
+}
+.nft .main .tokenInfo .duration {
+  display: flex;
+  align-items: center;
+  color: #a89ec9;
+  margin-right: 0.2rem;
+}
+.nft .main .tokenInfo .duration ins {
+  margin: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.nft .main .creator {
+  display: flex;
+  align-items: center;
+  margin-top: 0.2rem;
+  margin-bottom: -0.3rem;
+}
+.nft .main .creator ins {
+  color: #a89ec9;
+  text-decoration: none;
+}
+.nft .main .creator .wrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ffffff22;
+  padding: 0.3rem;
+  margin: 0;
+  margin-right: 0.5rem;
+  border-radius: 100%;
+  box-shadow: inset 0 0 0 4px #000000aa;
+}
+.nft .main .creator .wrapper img {
+  border-radius: 100%;
+  border: 1px solid #ffffff22;
+  width: 2rem;
+  height: 2rem;
+  object-fit: cover;
+  margin: 0;
+}
+.nft ::before {
+  position: fixed;
+  content: "";
+  box-shadow: 0 0 100px 40px #ffffff08;
+  top: -10%;
+  left: -100%;
+  transform: rotate(-45deg);
+  height: 60rem;
+  transition: 0.7s all;
+}
+.nft:hover {
+  border: 1px solid #ffffff44;
+  box-shadow: 0 7px 50px 10px #000000aa;
+  transform: scale(1.015);
+  filter: brightness(1.5);
+}
+.nft:hover ::before {
+  filter: brightness(0.5);
+  top: -100%;
+  left: 200%;
+}
+.bg-green-box,
+.bg-white-box,
+.bg-yellow-box,
+.bg-blue-box {
+  position: relative;
+}
+
+.bg-green-box::after,
+.bg-white-box::after,
+.bg-yellow-box::after,
+.bg-blue-box::after {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  left: -1px;
+  right: -1px;
+  content: "";
+  z-index: -1;
+  border-radius: 45px;
+}
+
+.bg-green-box::after {
+  background: linear-gradient(71deg, #0d1212, #005eff42, #0d1212);
+}
+
+.swiper-pagination-bullet {
+  height: 18px;
+  width: 18px;
+  background: #005effc0;
+  border: 1px solid #ffffff;
+  border-radius: 100px;
+}
+
+.swiper-button-next,
+.swiper-button-prev {
+  background-color: #04181c;
+  border: 1px solid #3da077;
+  border-radius: 100px;
+  padding: 5px;
+  height: 50px;
+  width: 50px;
+  font-size: 12px;
+}
+
+.swiper-button-prev:after,
+.swiper-button-next:after {
+  font-size: 22px;
+  color: #fff;
+}
+
+.swiper {
+  margin: auto;
+}
+
+.swiper-slide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.swiper-bg {
+  position: relative;
+  border: 2px solid transparent;
+  background: linear-gradient(71deg, #08050950, #1a171c, #080509af);
+  background-clip: padding-box;
+  border-radius: 45px;
+}
+
+.rotate-in {
+  perspective-origin: center;
+  transform: rotateX(50deg);
+  opacity: 0;
+}
+
+.rotate-in:nth-child(1) {
+  animation: rotateAnim 1s ease-in forwards;
+}
+
+.rotate-in:nth-child(2) {
+  animation: rotateAnim 1s ease-in 0.3s forwards;
+}
+
+@keyframes rotateAnim {
+  0% {
+    transform: rotateX(50deg);
+    opacity: 0;
+  }
+  100% {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+
+
+.phone-container {
+  width: 290px;
+  height: 650px;
+  border-radius: 40px;
+  background-color: black;
+  padding: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+.screen {
+  background-color: #111;
+  border-radius: 20px;
+  padding: 20px;
+  color: white;
+}
+
+.earnings h3, .earnings h1 {
+  margin: 0;
+}
+
+.progress-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: conic-gradient(#00f 80%, #333 20%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 20px;
+  margin: 20px 0;
+}
+
+.groups {
+  margin: 20px 0;
+}
+
+.group-icons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.group-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.group-btn {
+  background-color: #00f;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.transactions {
+  background-color: #222;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.video-container {
+  width: 100%;
+  
+}
+
+video {
+  width: 100%;
+  border-radius: 15px;
+}
+
+
+
+
+
+
+
+
+@media (max-width:768px) {
+  .css-1vx3a4p{
+    width: 400px;
+    height: 400px;
+  }
+  
+}
+
+/* Add these styles for RTL support */
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="rtl"] .ml-2 {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+[dir="rtl"] .mr-2 {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
