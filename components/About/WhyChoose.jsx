@@ -51,7 +51,7 @@ function WhyChoose() {
           </div>
           <div className=" w-full sm:w-1/2 flex justify-center">
             <img
-              src="images/about2.webp"
+              src="/assets/about.jpg"
               alt=""
               className="h-[450px] shadow-md border border-[#ffffff00] rounded-xl"
             />

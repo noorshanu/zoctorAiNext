@@ -1,0 +1,90 @@
+Top picks (trading + automation) — sell-first mindset
+
+1) Funding-Rate Arbitrage Bot (Institutional-friendly) — Top revenue/low time-to-prove
+
+Pitch: Capture funding-rate divergence across CEX perpetuals — hedge spot and pocket funding payouts.
+MVP features: funding-rate scanner, position simulator, auto-open hedged trades (paper mode), PnL dashboard, risk limits.
+Tech: Python/Node, exchange WS/APIs, Postgres, Redis; optionally use Hummingbot patterns.
+Monetization: SaaS license + profit-share. Enterprise clients pay premium.
+Risks: requires capital, exchange limits, and KYC for clients. Docs & marketplaces show demand and built-in exchange guides.  ￼
+
+⸻
+
+2) Cross-Exchange Latency & Orderbook Arb Router (the classic money-maker)
+
+Pitch: Auto-route execution: buy where cheapest, sell where priciest, manage transfer/hedge.
+MVP features: multi-exchange orderbook cache, arb detector, simulated execution, exchange-key manager, Telegram alerts.
+Tech: Go/Node for low latency, Redis orderbook cache, Postgres ledger, exchange SDKs.
+Monetization: license + per-trade fee or managed service for prop funds.
+Risks: latency, withdrawal times, capital fragmentation, and exchange T&Cs.
+
+⸻
+
+3) Smart Scanner + Auto-Exec (Grid + DCA + Rebalance) — retail pack
+
+Pitch: Combine Grid + DCA + dynamic rebalancer tuned by volatility; clients choose risk presets.
+MVP: grid strategies, DCA scheduler, backtest module, telegram alerts, simple UI.
+Tech: Node + React, exchange REST/WS.
+Monetization: subscription tiers (like Cryptohopper).  ￼
+
+⸻
+
+4) Liquidity Protection & LP Watcher (Projects + Investors)
+
+Pitch: Detect LP withdrawals, token admin moves, rug signals — instant alerts + automated emergency actions (e.g., pause buy bots).
+MVP: watch LP pairs, admin key notifications, Discord/Telegram alerts, daily contract health score.
+Tech: ethers.js/web3, node workers, Postgres.
+Monetization: monthly subscription + incident retainer. Whale/alerts competitors show viable pricing.  ￼
+
+⸻
+
+5) Whale / Mempool Sniffer + Predictive Entry Alerts
+
+Pitch: Spot large incoming swaps or mempool flows and predict price impact; alert or execute micro-arb/limit orders.
+MVP: mempool watcher, impact calc, entry suggestion, paper-exec.
+Tech: mempool node (Ethereum or Solana), WebSocket, Redis.
+Monetization: tiered alerts, API licensing.
+Risks: noisy signals, false positives; ethical concerns around frontrunning.
+
+⸻
+
+6) Copy-Trading Engine with Smart Filters (influencer sell)
+
+Pitch: Mirror vetted traders with filters (min ticket, max slippage, risk cap).
+MVP: copy engine, analytics, permission system, webhook for trade events.
+Tech: Node, exchange APIs, webhook infra.
+Monetization: take rate on copied profits + subscription.
+
+⸻
+
+7) Automated Market-Making (AMM) Manager for Projects
+
+Pitch: Auto place/tweak orders to maintain target spreads and TVL on CEX orderbooks or use LP strategies on DEXs.
+MVP: place limit orders, rebalance, fee analysis, simulation.
+Tech: Hummingbot-like strategies, order manager, DB.
+Monetization: monthly + one-time setup.
+
+⸻
+
+8) Airdrop & Interaction Automation (growth/airdrop farmers)
+
+Pitch: Automate safe protocol interactions to qualify for airdrops (bridge, stake, small txs) while tracking claimables.
+MVP: task scheduler, wallet manager, script templates, reporting.
+Monetization: subscription / managed service.
+
+⸻
+
+9) Smart Rebalancer for Treasury / DAO Automation
+
+Pitch: Auto-maintain treasury target allocations across chains & stablecoins, with safe multisig interactions.
+MVP: policy engine, simulation, multisig tx proposals (Gnosis), alerts.
+Tech: backend + governance integrations.
+Monetization: enterprise pricing, integration fee.
+
+⸻
+
+10) Social + On-chain Signal Fusion Bot (AI-assisted)
+
+Pitch: Combine on-chain signals (wallet clusters, volume) + social signal (X/Twitter trends) to score short-term trade ideas.
+MVP: data fusion engine, scoring, alerts. Nansen-like use-case is hot.  ￼
+Monetization: monthly subscription; higher tiers for API access.

@@ -1,0 +1,675 @@
+{
+  "api": {
+    "baseUrl": "https://zaidi123.pythonanywhere.com",
+    "localBaseUrl": "http://localhost:8000",
+    "version": "1.0.0",
+    "authentication": {
+      "type": "JWT Bearer Token",
+      "header": "Authorization: Bearer <access_token>",
+      "tokenRefresh": {
+        "endpoint": "/api/users/auth/refresh",
+        "method": "POST",
+        "body": {
+          "refresh": "<refresh_token>"
+        }
+      }
+    },
+    "endpoints": {
+      "authentication": {
+        "signup": {
+          "path": "/api/users/auth/signup",
+          "method": "POST",
+          "description": "Register a new user account. OTP will be sent automatically after signup.",
+          "authentication": false,
+          "request": {
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "email": "string (required, valid email)",
+              "password": "string (required, min 8 characters)",
+              "confirm_password": "string (required, must match password)",
+              "first_name": "string (optional)",
+              "last_name": "string (optional)",
+              "phone": "string (optional)",
+              "preferred_language": "string (optional)",
+              "preferred_contact_methods": "array of strings (optional)",
+              "description": "string (optional)"
+            },
+            "example": {
+              "email": "user@example.com",
+              "password": "SecurePass123!",
+              "confirm_password": "SecurePass123!",
+              "first_name": "John",
+              "last_name": "Doe",
+              "phone": "+1234567890"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 201,
+              "body": {
+                "message": "Signup successful. Please verify OTP sent to your email.",
+                "user": {
+                  "id": 1,
+                  "email": "user@example.com",
+                  "username": "user",
+                  "first_name": "John",
+                  "last_name": "Doe",
+                  "phone": "+1234567890",
+                  "is_otp_verified": false
+                },
+                "session_id": "550e8400-e29b-41d4-a716-446655440000",
+                "ttl_seconds": 600,
+                "cooldown_wait_seconds": 0
+              }
+            },
+            "error": {
+              "400": {
+                "detail": "Passwords do not match" | "Email already registered"
+              }
+            }
+          }
+        },
+        "login": {
+          "path": "/api/users/auth/login",
+          "method": "POST",
+          "description": "Login with email/username and password. Returns JWT tokens if user is already OTP-verified, otherwise requires OTP verification first.",
+          "authentication": false,
+          "request": {
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "identifier": "string (required, email or username)",
+              "password": "string (required)"
+            },
+            "example": {
+              "identifier": "user@example.com",
+              "password": "SecurePass123!"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "message": "Login successful",
+                "user": {
+                  "id": 1,
+                  "email": "user@example.com",
+                  "username": "user",
+                  "first_name": "John",
+                  "last_name": "Doe",
+                  "is_otp_verified": true
+                },
+                "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+              }
+            },
+            "error": {
+              "403": {
+                "detail": "Please verify your account via OTP before logging in.",
+                "hint": "Call /api/users/auth/send-otp to request a new code."
+              },
+              "400": {
+                "detail": "Invalid credentials"
+              }
+            }
+          }
+        },
+        "sendOTP": {
+          "path": "/api/users/auth/send-otp",
+          "method": "POST",
+          "description": "Request a new OTP code to be sent to user's email. Has a 15-second cooldown.",
+          "authentication": false,
+          "request": {
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "identifier": "string (required, email or username)"
+            },
+            "example": {
+              "identifier": "user@example.com"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "message": "OTP sent to your email.",
+                "session_id": "550e8400-e29b-41d4-a716-446655440000",
+                "ttl_seconds": 600
+              }
+            },
+            "error": {
+              "429": {
+                "detail": "Please wait before requesting another OTP.",
+                "retry_after_seconds": 10,
+                "session_id": "550e8400-e29b-41d4-a716-446655440000",
+                "ttl_seconds": 580
+              },
+              "200": {
+                "message": "Account already verified. Please log in."
+              }
+            }
+          }
+        },
+        "verifyOTP": {
+          "path": "/api/users/auth/verify-otp",
+          "method": "POST",
+          "description": "Verify OTP code and receive JWT tokens. Marks user as OTP-verified.",
+          "authentication": false,
+          "request": {
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "session_id": "string (required, UUID from signup/send-otp)",
+              "code": "string (required, 6-digit OTP code)"
+            },
+            "example": {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "code": "123456"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "message": "Login verified",
+                "user": {
+                  "id": 1,
+                  "email": "user@example.com",
+                  "username": "user",
+                  "first_name": "John",
+                  "last_name": "Doe",
+                  "is_otp_verified": true
+                },
+                "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+                "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+              }
+            },
+            "error": {
+              "400": {
+                "detail": "Invalid session_id" | "OTP already used" | "OTP expired" | "Invalid code"
+              },
+              "429": {
+                "detail": "Too many attempts"
+              }
+            }
+          }
+        },
+        "refreshToken": {
+          "path": "/api/users/auth/refresh",
+          "method": "POST",
+          "description": "Refresh access token using refresh token.",
+          "authentication": false,
+          "request": {
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "refresh": "string (required, refresh token)"
+            },
+            "example": {
+              "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "access": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+              }
+            },
+            "error": {
+              "401": {
+                "detail": "Token is invalid or expired"
+              }
+            }
+          }
+        },
+        "getMe": {
+          "path": "/api/users/auth/me",
+          "method": "GET",
+          "description": "Get current authenticated user's profile.",
+          "authentication": true,
+          "request": {
+            "headers": {
+              "Authorization": "Bearer <access_token>"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "user": {
+                  "id": 1,
+                  "email": "user@example.com",
+                  "username": "user",
+                  "first_name": "John",
+                  "last_name": "Doe",
+                  "phone": "+1234567890",
+                  "preferred_language": "en",
+                  "preferred_contact_methods": ["email"],
+                  "description": "",
+                  "is_otp_verified": true,
+                  "last_login": "2024-01-15T10:30:00Z",
+                  "date_joined": "2024-01-01T08:00:00Z"
+                }
+              }
+            },
+            "error": {
+              "401": {
+                "detail": "Authentication credentials were not provided."
+              }
+            }
+          }
+        },
+        "updateProfile": {
+          "path": "/api/users/auth/update",
+          "method": "PATCH",
+          "description": "Update current user's profile. Supports partial updates.",
+          "authentication": true,
+          "request": {
+            "headers": {
+              "Authorization": "Bearer <access_token>",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "first_name": "string (optional)",
+              "last_name": "string (optional)",
+              "phone": "string (optional)",
+              "preferred_language": "string (optional)",
+              "preferred_contact_methods": "array of strings (optional)",
+              "description": "string (optional)"
+            },
+            "example": {
+              "first_name": "Jane",
+              "phone": "+1987654321"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "user": {
+                  "id": 1,
+                  "email": "user@example.com",
+                  "first_name": "Jane",
+                  "last_name": "Doe",
+                  "phone": "+1987654321"
+                }
+              }
+            },
+            "error": {
+              "401": {
+                "detail": "Authentication credentials were not provided."
+              }
+            }
+          }
+        },
+        "logout": {
+          "path": "/api/users/auth/logout",
+          "method": "POST",
+          "description": "Logout current user session.",
+          "authentication": true,
+          "request": {
+            "headers": {
+              "Authorization": "Bearer <access_token>"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "message": "Logged out"
+              }
+            }
+          }
+        }
+      },
+      "documents": {
+        "upload": {
+          "path": "/api/documents/upload/",
+          "method": "POST",
+          "description": "Upload a document (PDF, TXT, MD) as base64 encoded data. Document is stored in Google Cloud Storage and text is extracted automatically.",
+          "authentication": true,
+          "request": {
+            "headers": {
+              "Authorization": "Bearer <access_token>",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "filename": "string (required, e.g., 'report.pdf')",
+              "data_base64": "string (required, base64 encoded file content)",
+              "session_id": "string (optional, UUID)"
+            },
+            "example": {
+              "filename": "medical_report.pdf",
+              "data_base64": "JVBERi0xLjQKJeLjz9MKMy...",
+              "session_id": "550e8400-e29b-41d4-a716-446655440000"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 201,
+              "body": {
+                "id": 1,
+                "gcs_uri": "gs://zoctorai/Django/user_docs/1/uuid-filename.pdf"
+              }
+            },
+            "error": {
+              "400": {
+                "detail": "data_base64 is required and must be valid base64."
+              },
+              "401": {
+                "detail": "Authentication credentials were not provided."
+              },
+              "500": {
+                "detail": "google-cloud-storage not installed" | "Google credentials not found"
+              }
+            }
+          }
+        },
+        "testUpload": {
+          "path": "/api/documents/test-upload/",
+          "method": "POST",
+          "description": "Test endpoint for PDF extraction. Accepts multipart file or base64 JSON.",
+          "authentication": false,
+          "request": {
+            "headers": {
+              "Content-Type": "multipart/form-data OR application/json"
+            },
+            "body": {
+              "file": "File (multipart) OR",
+              "filename": "string (JSON)",
+              "data_base64": "string (JSON, base64)"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "filename": "test.pdf",
+                "pages": 5,
+                "text": "Extracted text content..."
+              }
+            }
+          }
+        }
+      },
+      "chat": {
+        "createMessage": {
+          "path": "/api/chat/",
+          "method": "POST",
+          "description": "Create a new message in a conversation. Returns stream_id for SSE streaming.",
+          "authentication": true,
+          "request": {
+            "headers": {
+              "Authorization": "Bearer <access_token>",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "message": "string (required, user's message)",
+              "conversation_id": "integer (optional, existing conversation ID)"
+            },
+            "example": {
+              "message": "What are the key findings in my report?",
+              "conversation_id": 1
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "stream_id": "550e8400-e29b-41d4-a716-446655440000",
+                "conversation_id": 1,
+                "user_files": ["report1.pdf", "report2.pdf"]
+              }
+            },
+            "error": {
+              "400": {
+                "detail": "message is required"
+              },
+              "404": {
+                "detail": "conversation not found"
+              }
+            }
+          }
+        },
+        "streamResponse": {
+          "path": "/api/chat/stream/<stream_id>/",
+          "method": "GET",
+          "description": "Stream AI response via Server-Sent Events (SSE). Use EventSource or fetch with stream.",
+          "authentication": true,
+          "request": {
+            "headers": {
+              "Authorization": "Bearer <access_token>"
+            },
+            "queryParams": {
+              "token": "string (optional, alternative to Authorization header)"
+            },
+            "example": {
+              "url": "/api/chat/stream/550e8400-e29b-41d4-a716-446655440000/"
+            }
+          },
+          "response": {
+            "type": "text/event-stream",
+            "format": "SSE (Server-Sent Events)",
+            "events": {
+              "data": "word1\n\nword2\n\nword3\n\n...",
+              "done": "event: done\ndata: [END]\n\n",
+              "error": "event: error\ndata: <error_message>\n\n"
+            },
+            "example": {
+              "javascript": "const eventSource = new EventSource('/api/chat/stream/550e8400-e29b-41d4-a716-446655440000/?token=' + accessToken);\neventSource.onmessage = (e) => { console.log(e.data); };\neventSource.addEventListener('done', () => { eventSource.close(); });"
+            }
+          }
+        }
+      },
+      "summaries": {
+        "generate": {
+          "path": "/api/summaries/generate/",
+          "method": "POST",
+          "description": "Generate a medical summary from document text or document ID.",
+          "authentication": true,
+          "request": {
+            "headers": {
+              "Authorization": "Bearer <access_token>",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "session_id": "string (optional, UUID)",
+              "raw_text": "string (optional, document text content)",
+              "document_id": "integer (optional, ID of uploaded document)"
+            },
+            "example": {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "document_id": 1
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "id": 1,
+                "summary": "Key findings: Elevated cholesterol levels...",
+                "funnel_stage": "stage_1",
+                "tier": "tier_0",
+                "session_id": "550e8400-e29b-41d4-a716-446655440000"
+              }
+            },
+            "error": {
+              "401": {
+                "detail": "Authentication credentials were not provided."
+              }
+            }
+          }
+        }
+      },
+      "retrieval": {
+        "costLookup": {
+          "path": "/api/retrieval/cost/",
+          "method": "GET",
+          "description": "Lookup treatment cost information.",
+          "authentication": true,
+          "request": {
+            "headers": {
+              "Authorization": "Bearer <access_token>"
+            },
+            "queryParams": {
+              "treatment": "string (required, treatment name)"
+            },
+            "example": {
+              "url": "/api/retrieval/cost/?treatment=heart+surgery"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "treatment": "Heart Surgery",
+                "info": {
+                  "cost_range": "$50,000 - $100,000",
+                  "details": "..."
+                }
+              }
+            }
+          }
+        },
+        "hospitalLookup": {
+          "path": "/api/retrieval/hospitals/",
+          "method": "GET",
+          "description": "Search for hospitals by query and optional city.",
+          "authentication": true,
+          "request": {
+            "headers": {
+              "Authorization": "Bearer <access_token>"
+            },
+            "queryParams": {
+              "q": "string (required, search query)",
+              "city": "string (optional, city name)"
+            },
+            "example": {
+              "url": "/api/retrieval/hospitals/?q=cardiac+center&city=New+York"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "results": [
+                  {
+                    "name": "Cardiac Center",
+                    "address": "...",
+                    "rating": 4.5
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "telemetry": {
+        "logFunnel": {
+          "path": "/api/telemetry/funnel/",
+          "method": "POST",
+          "description": "Log funnel event for analytics.",
+          "authentication": true,
+          "request": {
+            "headers": {
+              "Authorization": "Bearer <access_token>",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "session_id": "string (optional, UUID)",
+              "event_type": "string (required, e.g., 'page_view', 'button_click')",
+              "source": "string (optional, e.g., 'web', 'mobile')",
+              "metadata": "object (optional, additional event data)"
+            },
+            "example": {
+              "session_id": "550e8400-e29b-41d4-a716-446655440000",
+              "event_type": "document_uploaded",
+              "source": "web",
+              "metadata": {
+                "document_type": "pdf",
+                "file_size": 1024000
+              }
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "id": 1
+              }
+            }
+          }
+        }
+      },
+      "accounts": {
+        "ensureSession": {
+          "path": "/api/accounts/session/",
+          "method": "GET",
+          "description": "Get or create a session ID for the authenticated user.",
+          "authentication": true,
+          "request": {
+            "headers": {
+              "Authorization": "Bearer <access_token>"
+            },
+            "queryParams": {
+              "session_id": "string (optional, existing session ID)"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "session_id": "550e8400-e29b-41d4-a716-446655440000"
+              }
+            }
+          }
+        }
+      }
+    },
+    "errorCodes": {
+      "400": "Bad Request - Invalid input data",
+      "401": "Unauthorized - Missing or invalid authentication token",
+      "403": "Forbidden - Access denied (e.g., OTP not verified)",
+      "404": "Not Found - Resource not found",
+      "429": "Too Many Requests - Rate limit exceeded (OTP cooldown)",
+      "500": "Internal Server Error - Server error",
+      "502": "Bad Gateway - External service error (e.g., GCS upload failed)"
+    },
+    "authenticationFlow": {
+      "newUser": [
+        "1. POST /api/users/auth/signup - Register account (receives session_id)",
+        "2. POST /api/users/auth/verify-otp - Verify OTP code (receives access & refresh tokens)",
+        "3. Use access token in Authorization header for authenticated requests"
+      ],
+      "existingUser": [
+        "1. POST /api/users/auth/login - Login with email/password (receives tokens if verified)",
+        "2. If not verified: POST /api/users/auth/send-otp, then POST /api/users/auth/verify-otp",
+        "3. Use access token in Authorization header for authenticated requests"
+      ],
+      "tokenRefresh": [
+        "1. POST /api/users/auth/refresh - Refresh access token before it expires",
+        "2. Access token lifetime: 60 minutes",
+        "3. Refresh token lifetime: 7 days"
+      ]
+    },
+    "notes": {
+      "cors": "CORS is enabled for all origins. No preflight issues.",
+      "base64Encoding": "For document uploads, encode file content as base64 string.",
+      "sseStreaming": "Chat responses use Server-Sent Events. Use EventSource API or fetch with stream.",
+      "otpCooldown": "OTP requests have a 15-second cooldown period.",
+      "otpExpiry": "OTP codes expire after 10 minutes (600 seconds).",
+      "otpMaxAttempts": "Maximum 5 attempts per OTP code.",
+      "fileFormats": "Supported: PDF, TXT, MD. PDF text extraction uses multiple fallback methods.",
+      "sessionId": "session_id is a UUID string used to track user sessions and conversations."
+    }
+  }
+}
+

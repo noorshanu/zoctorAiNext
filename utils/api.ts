@@ -175,14 +175,15 @@ export const registerUser = async (userData: {
 // User Login
 export const loginUser = async (credentials: { identifier: string; password: string }) => {
   try {
-    const response = await api.post('/api/auth/login', credentials);
+    const response = await api.post('/api/users/auth/login', credentials);
     
     // Transform backend response to match frontend expectations
     return {
-      status: response.data.success,
-      message: response.data.success ? "Login successful!" : "Login failed",
-      accessToken: response.data.access_token,
-      userId: response.data.user.user_id,
+      status: Boolean(response.data?.access),
+      message: response.data?.message ?? (response.data?.access ? "Login successful!" : "Login failed"),
+      accessToken: response.data.access,
+      refreshToken: response.data.refresh,
+      userId: response.data.user.id,
       firstName: response.data.user.first_name,
       user: response.data.user
     };
@@ -192,10 +193,37 @@ export const loginUser = async (credentials: { identifier: string; password: str
   }
 };
 
+// Send OTP for account verification
+export const sendOtp = async (payload: { identifier: string }) => {
+  try {
+    const response = await api.post('/api/users/auth/send-otp', payload);
+    return response.data;
+  } catch (error: any) {
+    console.error("Send OTP error:", error.response?.data || error.message);
+    throw error.response?.data || error.message;
+  }
+};
+
+// Verify OTP for account verification
+export const verifyOtp = async (payload: { session_id: string; code: string }) => {
+  try {
+    const response = await api.post('/api/users/auth/verify-otp', payload);
+    return response.data;
+  } catch (error: any) {
+    console.error("Verify OTP error:", error.response?.data || error.message);
+    throw error.response?.data || error.message;
+  }
+};
+
 // Refresh Token
 export const refreshAccessToken = async () => {
   try {
-    const response = await api.post('/api/auth/refresh');
+    const refresh = localStorage.getItem('refreshToken');
+    const response = await api.post('/api/users/auth/refresh', { refresh });
+    const newAccess = response.data?.access;
+    if (newAccess) {
+      localStorage.setItem('accessToken', newAccess);
+    }
     return response.data;
   } catch (error) {
     console.error('Token refresh error:', error);
@@ -206,7 +234,7 @@ export const refreshAccessToken = async () => {
 // Logout User
 export const logoutUser = async () => {
   try {
-    const response = await api.post('/api/auth/logout');
+    const response = await api.post('/api/users/auth/logout');
     return response.data;
   } catch (error) {
     console.error('Logout error:', error);
@@ -217,7 +245,7 @@ export const logoutUser = async () => {
 // Update fetchUserInfo to use apiClient
 export const fetchUserInfo = async (userId) => {
   try {
-    const response = await api.get(`/api/auth/me`);
+    const response = await api.get(`/api/users/auth/me`);
     return response.data;
   } catch (error) {
     console.error('Error fetching user info:', error);
@@ -233,7 +261,7 @@ export const updateUserInfo = async (userId, updatedData) => {
 
     console.log("📤 Sending update request:", allowedUpdates);
 
-    const response = await api.put(`/api/auth/update`, allowedUpdates, {
+    const response = await api.patch(`/api/users/auth/update`, allowedUpdates, {
       headers: {
         "Content-Type": "application/json",
       },
