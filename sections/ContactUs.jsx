@@ -127,7 +127,7 @@ function ContactUs() {
                     </label>
                     <textarea
                       id="tasks"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-1 border rounded-md"
                       rows="4"
                     ></textarea>
                   </div>

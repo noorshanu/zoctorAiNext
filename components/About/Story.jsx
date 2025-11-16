@@ -9,7 +9,7 @@ function Story() {
             <img
               src="assets/aidia.jpg"
               alt=""
-              className="h-[450px] shadow-md border border-[#ffffff00] rounded-xl"
+              className="h-[570px] w-full shadow-md border border-[#ffffff00] rounded-xl mt-4"
             />
           </div>
 

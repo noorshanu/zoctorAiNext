@@ -17,7 +17,7 @@ function Contact() {
             <ContactUs/>
         </div>
         <div className=' w-full sm:w-1/2'>
-<img src="/images/contact.jpg" alt="" className=' w-[500px] h-[400px] rounded-xl' />
+<img src="/images/contact.jpg" alt="" className=' w-[550px] h-[550px] rounded-xl' />
         </div>
      </div>
       <Footer/>
