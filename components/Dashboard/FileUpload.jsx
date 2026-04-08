@@ -8,8 +8,17 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const API_BASE_URL = "http://localhost:8000";
+import {
+  createChatMessage,
+  streamChatResponse,
+  uploadFile,
+  updateDocumentSummary,
+  API_BASE_URL,
+  isZoctorFastApiBackend,
+  zoctorExtractPdfText,
+  zoctorGenerateSummary,
+  zoctorChatReply,
+} from "../../utils/api";
 
 // Add generatePDF function
 const generatePDF = async (result, patientInfo) => {
@@ -21,6 +30,10 @@ const generatePDF = async (result, patientInfo) => {
 
     // Helper function to draw wrapped text
     const drawWrappedText = (text, x, y, maxWidth, fontSize, font, color = rgb(0, 0, 0)) => {
+      // Handle undefined or null text
+      if (!text || typeof text !== 'string') {
+        return y;
+      }
       const words = text.split(/\s+/);
       let line = '';
       let currentY = y;
@@ -152,8 +165,9 @@ const generatePDF = async (result, patientInfo) => {
 
     // Draw the summary text with proper word wrapping
     const maxWidth = 495; // page width minus margins
+    const summaryText = result.summary || result.text_content || 'No summary available.';
     currentY = drawWrappedText(
-      result.summary,
+      summaryText,
       50,
       currentY,
       maxWidth,
@@ -179,8 +193,10 @@ const generatePDF = async (result, patientInfo) => {
   }
 };
 
-const FileUpload = ({ userId }) => {
+const FileUpload = ({ userId: userIdProp }) => {
   const router = useRouter();
+  const [effectiveUserId, setEffectiveUserId] = useState(userIdProp || '');
+  const [userIdReady, setUserIdReady] = useState(!!userIdProp);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [analysisResults, setAnalysisResults] = useState([]);
   const [userQuestion, setUserQuestion] = useState("");
@@ -193,8 +209,25 @@ const FileUpload = ({ userId }) => {
   const [fileStatuses, setFileStatuses] = useState({});
   const [patientInfo, setPatientInfo] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState(null);
   
   const chatContainerRef = useRef(null);
+  const zoctorBackend = isZoctorFastApiBackend();
+  const showChatPanel =
+    userIdReady && !!effectiveUserId && (zoctorBackend || analysisResults.length > 0);
+
+  useEffect(() => {
+    if (userIdProp) {
+      setEffectiveUserId(userIdProp);
+      setUserIdReady(true);
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('userId');
+      setEffectiveUserId(stored || '');
+    }
+    setUserIdReady(true);
+  }, [userIdProp]);
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -202,11 +235,16 @@ const FileUpload = ({ userId }) => {
       router.push("/login");
       return;
     }
-    if (!userId) {
+  }, [router]);
+
+  useEffect(() => {
+    if (!userIdReady) return;
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    if (!effectiveUserId) {
       router.push("/dashboard");
-      return;
     }
-  }, [userId, router]);
+  }, [userIdReady, effectiveUserId, router]);
 
   useEffect(() => {
     const fetchPatientInfo = async () => {
@@ -214,7 +252,7 @@ const FileUpload = ({ userId }) => {
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        const response = await axios.get(`${API_BASE_URL}/api/auth/me`, {
+        const response = await axios.get(`${API_BASE_URL}/api/users/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -225,15 +263,15 @@ const FileUpload = ({ userId }) => {
       }
     };
 
-    if (userId) {
+    if (effectiveUserId) {
       fetchPatientInfo();
     }
-  }, [userId]);
+  }, [effectiveUserId]);
 
   useEffect(() => {
     const loadChatHistory = () => {
       try {
-        const savedHistory = localStorage.getItem(`chat_history_${userId}`);
+        const savedHistory = localStorage.getItem(`chat_history_${effectiveUserId}`);
         if (savedHistory) {
           setChatHistory(JSON.parse(savedHistory));
         }
@@ -242,16 +280,16 @@ const FileUpload = ({ userId }) => {
       }
     };
 
-    if (userId) {
+    if (effectiveUserId) {
       loadChatHistory();
     }
-  }, [userId]);
+  }, [effectiveUserId]);
 
   useEffect(() => {
-    if (userId && chatHistory.length > 0) {
-      localStorage.setItem(`chat_history_${userId}`, JSON.stringify(chatHistory));
+    if (effectiveUserId && chatHistory.length > 0) {
+      localStorage.setItem(`chat_history_${effectiveUserId}`, JSON.stringify(chatHistory));
     }
-  }, [chatHistory, userId]);
+  }, [chatHistory, effectiveUserId]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -317,15 +355,8 @@ const FileUpload = ({ userId }) => {
   // Add function to clear chat history
   const clearChatHistory = useCallback(() => {
     setChatHistory([]);
-    localStorage.removeItem(`chat_history_${userId}`);
-  }, [userId]);
-
-  // Clear chat history when component unmounts
-  useEffect(() => {
-    return () => {
-      clearChatHistory();
-    };
-  }, [clearChatHistory]);
+    localStorage.removeItem(`chat_history_${effectiveUserId}`);
+  }, [effectiveUserId]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -354,7 +385,7 @@ const FileUpload = ({ userId }) => {
       }
 
       const token = localStorage.getItem("accessToken");
-      if (!token || !userId) {
+      if (!token || !effectiveUserId) {
         setErrorMessage("Authentication required");
         router.push("/login");
         return;
@@ -363,50 +394,150 @@ const FileUpload = ({ userId }) => {
       setIsLoading(true);
       setErrorMessage("");
 
-      const formData = new FormData();
-      selectedFiles.forEach(fileObj => {
-        formData.append("files", fileObj.file);
-      });
+      // Get or create session ID
+      let sessionId = localStorage.getItem('sessionId');
+      if (!sessionId) {
+        sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('sessionId', sessionId);
+      }
 
-      const response = await axios.post(
-        `${API_BASE_URL}/api/upload`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            "Authorization": `Bearer ${token}`,
-          },
-          onUploadProgress: (progressEvent) => {
-            const progress = Math.round(
-              (progressEvent.loaded * 100) / (progressEvent.total || 0)
-            );
-            setFileProgress(prev => ({
-              ...prev,
-              total: progress
-            }));
-          },
-          withCredentials: true,
+      if (zoctorBackend) {
+        const textParts = [];
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const fileObj = selectedFiles[i];
+          setFileStatuses((prev) => ({ ...prev, [fileObj.id]: 'uploading' }));
+          try {
+            const { text } = await zoctorExtractPdfText(fileObj.file);
+            if (text && text.trim()) {
+              textParts.push(`=== ${fileObj.file.name} ===\n${text}`);
+            }
+            setFileStatuses((prev) => ({ ...prev, [fileObj.id]: 'success' }));
+            const progress = Math.round(((i + 1) / selectedFiles.length) * 100);
+            setFileProgress((prev) => ({ ...prev, [fileObj.id]: progress, total: progress }));
+          } catch (err) {
+            console.error(err);
+            setFileStatuses((prev) => ({ ...prev, [fileObj.id]: 'error' }));
+            throw err;
+          }
         }
-      );
-
-      console.log("Upload Response:", response.data);
-
-      if (response.data && response.data.success) {
-        // Set analysis results with the summary
-        setAnalysisResults([{
-          _id: `analysis_${Date.now()}`,
-          files: response.data.file_info,
-          summary: response.data.summary,
-          timestamp: response.data.timestamp
-        }]);
-
-        setSuccessMessage(`Successfully processed ${response.data.files_processed} file(s)`);
+        const combined = textParts.join('\n\n').trim();
+        if (combined.length < 50) {
+          throw new Error('Could not read enough text from PDFs. Try text-based PDFs or re-export from your lab portal.');
+        }
+        const summaryPayload = await zoctorGenerateSummary({
+          user_id: effectiveUserId,
+          raw_text: combined,
+          session_id: sessionId,
+          location: 'New Delhi',
+          region: 'India',
+        });
+        const summaryText = summaryPayload.summary || '';
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(`zoctor_report_context_${effectiveUserId}`, summaryText);
+        }
+        const filesSnapshot = [...selectedFiles];
+        setAnalysisResults([
+          {
+            _id: `analysis_${Date.now()}`,
+            summary: summaryText,
+            rawSummaryPayload: summaryPayload,
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+        setSuccessMessage('Report analyzed. You can ask follow-up questions below.');
         setSelectedFiles([]);
         setFileStatuses({});
         setFileProgress({});
-      } else {
-        throw new Error("Invalid response format from server");
+        setIsLoading(false);
+        (async () => {
+          for (const fileObj of filesSnapshot) {
+            try {
+              const up = await uploadFile(fileObj.file, sessionId);
+              if (up?.id && summaryText) {
+                await updateDocumentSummary(up.id, summaryText);
+              }
+            } catch (e) {
+              console.warn('Could not save report to Your Reports library:', e);
+            }
+          }
+        })();
+        return;
       }
+
+      // Upload files one by one using the new API
+      const uploadResults = [];
+      const fileInfo = [];
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const fileObj = selectedFiles[i];
+        
+        try {
+          // Update file status to uploading
+          setFileStatuses(prev => ({ ...prev, [fileObj.id]: 'uploading' }));
+          
+          // Upload file using new API
+          const uploadResponse = await uploadFile(fileObj.file, sessionId);
+          
+          uploadResults.push({
+            fileId: fileObj.id,
+            fileName: fileObj.file.name,
+            documentId: uploadResponse.id,
+            gcsUri: uploadResponse.gcs_uri,
+            success: true
+          });
+
+          fileInfo.push({
+            name: fileObj.file.name,
+            size: fileObj.file.size,
+            id: uploadResponse.id
+          });
+
+          // Update progress
+          const progress = Math.round(((i + 1) / selectedFiles.length) * 100);
+          setFileProgress(prev => ({
+            ...prev,
+            [fileObj.id]: progress,
+            total: progress
+          }));
+
+          setFileStatuses(prev => ({ ...prev, [fileObj.id]: 'success' }));
+        } catch (error) {
+          const errorDetail = error?.response?.data?.detail || error?.response?.data?.error_message || error?.message || 'Upload failed';
+          console.error(`Error uploading ${fileObj.file.name}:`, {
+            error,
+            detail: errorDetail,
+            response: error?.response?.data,
+            status: error?.response?.status
+          });
+          setFileStatuses(prev => ({ ...prev, [fileObj.id]: 'error' }));
+          uploadResults.push({
+            fileId: fileObj.id,
+            fileName: fileObj.file.name,
+            success: false,
+            error: errorDetail
+          });
+        }
+      }
+
+      // Check if any uploads succeeded
+      const successfulUploads = uploadResults.filter(r => r.success);
+      
+      if (successfulUploads.length === 0) {
+        throw new Error("All file uploads failed. Please try again.");
+      }
+
+      // Set analysis results
+      setAnalysisResults([{
+        _id: `analysis_${Date.now()}`,
+        files: fileInfo,
+        uploadResults: uploadResults,
+        timestamp: new Date().toISOString()
+      }]);
+
+      setSuccessMessage(`Successfully uploaded ${successfulUploads.length} of ${selectedFiles.length} file(s)`);
+      setSelectedFiles([]);
+      setFileStatuses({});
+      setFileProgress({});
 
     } catch (error) {
       console.error("Upload error details:", {
@@ -454,17 +585,18 @@ const FileUpload = ({ userId }) => {
   }, []);
 
   const handleAskQuestion = async () => {
-    if (!userQuestion || !analysisResults.length) {
-      setErrorMessage("Please analyze at least one report before asking a question.");
+    if (!userQuestion.trim()) {
+      setErrorMessage("Please enter a question.");
       return;
     }
     try {
       setIsLoading(true);
       setErrorMessage("");
       
+      const questionText = userQuestion.trim();
       const newUserMessage = {
         type: 'user',
-        content: userQuestion,
+        content: questionText,
         timestamp: new Date().toISOString()
       };
       setChatHistory(prev => [...prev, newUserMessage]);
@@ -475,42 +607,143 @@ const FileUpload = ({ userId }) => {
         throw new Error("User is not authenticated. Please log in again.");
       }
 
-      // Show typing indicator
       setIsTyping(true);
 
-      const response = await fetch(`${API_BASE_URL}/api/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          message: userQuestion,
-          context: analysisResults.map(result => result.summary).join("\n"),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status} - ${response.statusText}`);
+      if (zoctorBackend) {
+        try {
+          const sessionId = localStorage.getItem('sessionId') || undefined;
+          let context = '';
+          if (typeof window !== 'undefined') {
+            context = sessionStorage.getItem(`zoctor_report_context_${effectiveUserId}`) || '';
+          }
+          if (!context && analysisResults.length > 0) {
+            context = analysisResults[0].summary || '';
+          }
+          const { reply } = await zoctorChatReply({
+            user_id: effectiveUserId,
+            message: questionText,
+            context,
+            session_id: sessionId,
+            location: 'New Delhi',
+            region: 'India',
+          });
+          setChatHistory((prev) => [
+            ...prev,
+            {
+              type: 'ai',
+              content: reply,
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+        } catch (err) {
+          const errorMsg = err?.message || 'Chat request failed.';
+          setErrorMessage(errorMsg);
+          setChatHistory((prev) => [
+            ...prev,
+            {
+              type: 'error',
+              content: errorMsg,
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+        } finally {
+          setIsTyping(false);
+          setIsLoading(false);
+        }
+        return;
       }
-      const result = await response.json();
-      
-      // Hide typing indicator
-      setIsTyping(false);
 
-      if (result.response) {
-        const newAIMessage = {
-          type: 'ai',
-          content: result.response,
+      // Create message and get stream_id
+      let chatResponse;
+      try {
+        chatResponse = await createChatMessage(questionText, currentConversationId);
+      } catch (error) {
+        console.error("Error creating chat message:", error);
+        setIsTyping(false);
+        setIsLoading(false);
+        const errorMsg = error.response?.data?.detail || 
+                        error.response?.data?.message || 
+                        error.message || 
+                        "Failed to send message.";
+        setErrorMessage(errorMsg);
+        
+        const errorMessage = {
+          type: 'error',
+          content: errorMsg,
           timestamp: new Date().toISOString()
         };
-        setChatHistory(prev => [...prev, newAIMessage]);
-      } else {
-        throw new Error("No answer returned from the server.");
+        setChatHistory(prev => [...prev, errorMessage]);
+        return;
       }
+      
+      // Update conversation ID if this is a new conversation
+      if (chatResponse.conversation_id && !currentConversationId) {
+        setCurrentConversationId(chatResponse.conversation_id);
+      }
+      
+      // Check if stream_id exists
+      if (!chatResponse.stream_id) {
+        console.error("No stream_id in response:", chatResponse);
+        setIsTyping(false);
+        setIsLoading(false);
+        setErrorMessage("Invalid response from server. Missing stream_id.");
+        return;
+      }
+
+      // Create placeholder AI message for streaming
+      const aiMessageId = Date.now();
+      const newAIMessage = {
+        id: aiMessageId,
+        type: 'ai',
+        content: '',
+        timestamp: new Date().toISOString()
+      };
+      setChatHistory(prev => [...prev, newAIMessage]);
+
+      // Stream the response
+      let fullResponse = '';
+      const eventSource = streamChatResponse(
+        chatResponse.stream_id,
+        (word) => {
+          // Append each word to the response
+          fullResponse += (fullResponse ? ' ' : '') + word;
+          // Update the AI message in real-time
+          setChatHistory(prev => prev.map(msg => 
+            msg.id === aiMessageId 
+              ? { ...msg, content: fullResponse }
+              : msg
+          ));
+        },
+        () => {
+          // Stream complete
+          setIsTyping(false);
+          setIsLoading(false);
+        },
+        (error) => {
+          // Error occurred
+          console.error("Stream error:", error);
+          setIsTyping(false);
+          setIsLoading(false);
+          setErrorMessage(error || "Failed to get an answer to your question.");
+          
+          // Update the message to show error
+          setChatHistory(prev => prev.map(msg => 
+            msg.id === aiMessageId 
+              ? { ...msg, type: 'error', content: error || "Failed to get response." }
+              : msg
+          ));
+        }
+      );
+
+      // Store eventSource for cleanup if needed
+      return () => {
+        eventSource.close();
+      };
+
     } catch (error) {
       console.error("Error asking question:", error);
       setIsTyping(false);
+      setIsLoading(false);
       setErrorMessage(error.message || "Failed to get an answer to your question.");
       
       const errorMessage = {
@@ -519,8 +752,6 @@ const FileUpload = ({ userId }) => {
         timestamp: new Date().toISOString()
       };
       setChatHistory(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -761,9 +992,11 @@ const FileUpload = ({ userId }) => {
                   </div>
 
                   <div className="prose prose-sm max-w-none bg-white p-6 rounded-lg border border-gray-200">
-                    <ReactMarkdown className="text-gray-700">
-                      {result.summary}
-                    </ReactMarkdown>
+                    <div className="text-gray-700">
+                      <ReactMarkdown>
+                        {result.summary}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -771,15 +1004,22 @@ const FileUpload = ({ userId }) => {
           </div>
         )}
 
-        {/* Section 3: AI Chat */}
-        {analysisResults.length > 0 && (
+        {/* Section 3: AI Chat (Zoctor FastAPI: POST /api/v1/chat/reply) */}
+        {showChatPanel && (
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center">
-                <svg className="w-8 h-8 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-                <h2 className="text-2xl font-bold text-gray-800 ml-3">Ask Questions About Your Reports</h2>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center">
+                  <svg className="w-8 h-8 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <h2 className="text-2xl font-bold text-gray-800 ml-3">Ask ZoctorAI</h2>
+                </div>
+                {zoctorBackend && analysisResults.length === 0 && (
+                  <p className="text-sm text-gray-500 ml-11 max-w-xl">
+                    Upload and analyze a PDF above to attach report text as context. You can still ask questions now—replies use your account without document context until a summary exists.
+                  </p>
+                )}
               </div>
               
               {chatHistory.length > 0 && (
@@ -845,8 +1085,8 @@ const FileUpload = ({ userId }) => {
                             animate={{ x: 0, opacity: 1 }}
                             transition={{ type: "spring", stiffness: 200, damping: 20 }}
                           >
-                            <div className="bg-[#76ccf0] border  px-4 py-2 rounded-[20px] rounded-tl-[5px] max-w-[80%] shadow-sm">
-                              <p className="text-[15px] leading-[1.4] text-gray-800">{message.content}</p>
+                            <div className="bg-[#76ccf0] border px-4 py-2 rounded-[20px] rounded-tl-[5px] max-w-[min(80%,42rem)] shadow-sm prose prose-sm text-gray-800">
+                              <ReactMarkdown>{message.content}</ReactMarkdown>
                             </div>
                             <span className="text-xs text-[#8d8d8d] mt-1">
                               {new Date(message.timestamp).toLocaleTimeString()}

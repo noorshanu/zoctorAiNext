@@ -1,121 +1,179 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { FaUser, FaUserCircle } from 'react-icons/fa';
-import { MdLogout, MdSettings } from 'react-icons/md';
-import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '../../AuthProvider';
+import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { FaUser } from "react-icons/fa";
+import { MdLogout } from "react-icons/md";
+import { FiChevronDown } from "react-icons/fi";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../../AuthProvider";
 import { BsTelegram } from "react-icons/bs";
 import { FaTwitter } from "react-icons/fa";
 import { FaInstagram } from "react-icons/fa6";
 
-const Navbar = () => { 
+const socialClass =
+  "flex h-9 w-9 items-center justify-center rounded-lg text-lg text-white/70 transition hover:bg-white/10 hover:text-prime focus:outline-none focus:ring-2 focus:ring-prime/50";
+
+function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const router = useRouter();
   const { isAuthenticated, logout } = useAuth();
-  const { userId } = useParams();
-  // We'll store the user's first name in local state
   const [firstName, setFirstName] = useState("");
+  const menuRef = useRef(null);
 
-  // On mount or when isAuthenticated changes, load from localStorage (or an API)
   useEffect(() => {
     if (isAuthenticated) {
-      const storedName = localStorage.getItem("firstName") || "";
-      setFirstName(storedName);
+      let name = localStorage.getItem("firstName") || "";
+      if (!name) {
+        try {
+          const raw = localStorage.getItem("user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            if (u?.first_name) name = u.first_name;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      setFirstName(name.trim());
     } else {
       setFirstName("");
       router.push("/login");
     }
   }, [isAuthenticated, router]);
 
-  // This function clears user data from localStorage and redirects to login
   const handleLogout = async () => {
     try {
-      setDropdownOpen(false); // Close dropdown before logout
+      setDropdownOpen(false);
       await logout();
       router.push("/login");
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       router.push("/login");
     }
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownOpen && !event.target.closest('.dropdown-container')) {
+      if (
+        dropdownOpen &&
+        menuRef.current &&
+        !menuRef.current.contains(event.target)
+      ) {
         setDropdownOpen(false);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownOpen]);
 
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setDropdownOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [dropdownOpen]);
+
+  const displayName = firstName || "Account";
+  const initial = firstName ? firstName.charAt(0).toUpperCase() : "?";
+
   return (
-    <div className="bg-[#0e0e0e] text-white p-4 flex justify-end gap-4 items-center">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0e0e0e] shadow-sm backdrop-blur-md ">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-3.5">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">
+            ZoctorAI
+          </p>
+          <p className="truncate text-sm font-semibold text-white sm:text-base">
+            Dashboard
+          </p>
+        </div>
 
-      <div className="flex gap-2 text-[25px]">
-              <a
-                target="_blank"
-                href="https://www.instagram.com/"
-                className="hover:text-prime transition-all duration-200"
-              >
-                <FaInstagram />
-              </a>
-
-              <a
-                target="_blank"
-                href="https://twitter.com/"
-                className="hover:text-prime transition-all duration-200"
-              >
-                <FaTwitter />
-              </a>
-
-              <a
-                target="_blank"
-                href="#"
-                className="hover:text-prime transition-all duration-200"
-              >
-                <BsTelegram />
-              </a>
-
-        
-            </div>
-      <div className="relative bg-[#484848] rounded-full py-1 px-3 shadow-md dropdown-container">
-        
-        <button 
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex items-center gap-2 text-white focus:outline-none"
-        >
-          <FaUserCircle size={24} />
-          <span className=' uppercase'>{firstName}</span>
-        </button>
-        {dropdownOpen && (
-          <div className="absolute right-0 mt-2 bg-[#fff] border-prime border-2 text-[#000] shadow-lg rounded-md w-40 z-50">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <div
+            className="mr-1 flex items-center rounded-xl border border-white/10 bg-white/5 p-0.5 sm:mr-2"
+            aria-label="Social links"
+          >
             <a
-              href={`/profile/${userId}`}
-              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100"
+              target="_blank"
+              rel="noopener noreferrer"
+              href="https://www.instagram.com/"
+              className={socialClass}
+              aria-label="Instagram"
             >
-             <FaUser/> Profile
+              <FaInstagram className="text-base" />
             </a>
-            {/* <a
-              href="/settings"
-              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100"
+            <a
+              target="_blank"
+              rel="noopener noreferrer"
+              href="https://twitter.com/"
+              className={socialClass}
+              aria-label="Twitter"
             >
-              <MdSettings /> Settings
-            </a> */}
-            <button
-            onClick={handleLogout}
-      
-              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100"
+              <FaTwitter className="text-base" />
+            </a>
+            <span
+              className={`${socialClass} cursor-default opacity-35`}
+              title="Telegram — link coming soon"
+              aria-hidden
             >
-              <MdLogout /> Logout
-            </button>
+              <BsTelegram className="text-base" />
+            </span>
           </div>
-        )}
+
+          <div className="relative" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setDropdownOpen((o) => !o)}
+              className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 py-1.5 pl-1.5 pr-3 text-left text-white shadow-sm transition hover:border-prime/40 hover:bg-white/[0.12] focus:outline-none focus:ring-2 focus:ring-prime/60 focus:ring-offset-2 focus:ring-offset-[#0e0e0e]"
+              aria-expanded={dropdownOpen}
+              aria-haspopup="menu"
+              aria-label="Account menu"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-prime to-blue-700 text-sm font-bold text-white shadow-inner">
+                {initial}
+              </span>
+              <span className="hidden max-w-[120px] truncate text-sm font-medium sm:inline">
+                {displayName}
+              </span>
+              <FiChevronDown
+                className={`h-4 w-4 shrink-0 text-white/60 transition ${dropdownOpen ? "rotate-180" : ""}`}
+                aria-hidden
+              />
+            </button>
+
+            {dropdownOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 mt-2 w-48 origin-top-right overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl ring-1 ring-black/5"
+              >
+                <Link
+                  href="/profile/"
+                  role="menuitem"
+                  onClick={() => setDropdownOpen(false)}
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-800 transition hover:bg-gray-50"
+                >
+                  <FaUser className="text-prime" aria-hidden />
+                  Profile
+                </Link>
+                <div className="my-0.5 h-px bg-gray-100" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
+                >
+                  <MdLogout className="text-lg" aria-hidden />
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </header>
   );
-};
+}
 
 export default Navbar;

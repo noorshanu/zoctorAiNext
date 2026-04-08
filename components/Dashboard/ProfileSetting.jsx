@@ -1,14 +1,19 @@
 "use client";
 /* eslint-disable no-unused-vars */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
-import { fetchUserInfo, updateUserInfo } from "../../utils/api";
-import axios from "axios";
+import {
+  fetchUserInfo,
+  updateUserInfo,
+  isZoctorFastApiBackend,
+  listFamilyProfiles,
+  addFamilyProfile,
+  deleteFamilyProfile,
+  fileToBase64,
+} from "../../utils/api";
 import { CiEdit } from "react-icons/ci";
 import { AiTwotoneDelete } from "react-icons/ai";
 import { motion } from 'framer-motion';
-
-const API_BASE_URL = "http://localhost:8000";
 
 // Add LoadingAnimation component
 const LoadingAnimation = () => {
@@ -70,6 +75,43 @@ const LoadingAnimation = () => {
   );
 };
 
+/** Map `/api/users/auth/me` or patch `user` object (snake_case) to profile form state */
+function mapApiUserToForm(response) {
+  return {
+    firstName: response.first_name,
+    lastName: response.last_name,
+    email: response.email,
+    username: response.username,
+    phoneNumber: response.phone,
+    description: response.description,
+    preferredLanguage: response.preferred_language,
+    preferredContactMethod: response.preferred_contact_methods,
+    dateOfBirth: response.date_of_birth || "",
+    gender: response.gender || "",
+    bloodType: response.blood_type || "",
+    address: response.address || {
+      street: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      country: "",
+    },
+    profilePicture:
+      typeof response.profile_picture === "string"
+        ? { url: response.profile_picture }
+        : response.profile_picture || null,
+    preferredAppointmentTime: response.preferred_appointment_time || "",
+    IsthisWhatsappPhoneNumber: response.is_whatsapp_phone || false,
+    willingForInternationalTreatment: response.willing_international_treatment || false,
+    willingForMedicalTourism: response.willing_medical_tourism || false,
+    wantZoctorAICallback: response.want_zoctor_callback || false,
+    Smoking: response.smoking || false,
+    alchohal: response.alcohol || false,
+  };
+}
+
+const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
+
 const Profile = () => {
   // State for user data, loading status, messages, etc.
   const { userId } = useParams();
@@ -78,6 +120,11 @@ const Profile = () => {
   const [uploading, setUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [familyProfiles, setFamilyProfiles] = useState([]);
+  const [familyLoading, setFamilyLoading] = useState(false);
+  const [fmName, setFmName] = useState("");
+  const [fmRelation, setFmRelation] = useState("child");
+  const profilePicInputRef = useRef(null);
 
   // Add this inside the Profile component, with the other state variables
   const timeSlots = [
@@ -97,50 +144,86 @@ const Profile = () => {
         setSuccessMessage("");
         const response = await fetchUserInfo();
         console.log("Profile data received:", response);
-        
-        // Transform API response to match frontend expectations
-        const transformedData = {
-          firstName: response.first_name,
-          lastName: response.last_name,
-          email: response.email,
-          username: response.username,
-          phoneNumber: response.phone,
-          description: response.description,
-          preferredLanguage: response.preferred_language,
-          preferredContactMethod: response.preferred_contact_methods,
-          // Add default values for missing fields
-          dateOfBirth: response.date_of_birth || "",
-          gender: response.gender || "",
-          bloodType: response.blood_type || "",
-          address: response.address || {
-            street: "",
-            city: "",
-            state: "",
-            zipCode: "",
-            country: ""
-          },
-          profilePicture: response.profile_picture || null,
-          preferredAppointmentTime: response.preferred_appointment_time || "",
-          IsthisWhatsappPhoneNumber: response.is_whatsapp_phone || false,
-          willingForInternationalTreatment: response.willing_international_treatment || false,
-          willingForMedicalTourism: response.willing_medical_tourism || false,
-          wantZoctorAICallback: response.want_zoctor_callback || false,
-          Smoking: response.smoking || false,
-          alchohal: response.alcohol || false
-        };
-        
+
+        const transformedData = mapApiUserToForm(response);
         console.log("Transformed data:", transformedData);
         setUserData(transformedData);
       } catch (error) {
         console.error("Error loading user info:", error);
-        setErrorMessage("Failed to load user information. " + (error.msg || error.message || "Unknown error"));
+        const errorMsg = error.response?.data?.detail || 
+                        error.response?.data?.message || 
+                        error.msg || 
+                        error.message || 
+                        "Unknown error";
+        setErrorMessage(`Failed to load user information: ${errorMsg}`);
+        
+        // If 401, redirect to login
+        if (error.response?.status === 401) {
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (userId) getUserData();
-  }, [userId]);
+    // Fetch user data regardless of userId from route
+    // The API endpoint /api/users/auth/me uses the authenticated user's token
+    getUserData();
+  }, [userId]); // Keep userId in deps in case we need to refetch for specific user later
+
+  useEffect(() => {
+    if (!isZoctorFastApiBackend() || typeof window === "undefined") return;
+    const uid = localStorage.getItem("userId");
+    if (!uid || !userData) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setFamilyLoading(true);
+        const r = await listFamilyProfiles(uid);
+        if (!cancelled) setFamilyProfiles(r.profiles || []);
+      } catch (e) {
+        console.error("Family profiles:", e);
+      } finally {
+        if (!cancelled) setFamilyLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userData]);
+
+  const handleAddFamily = async (e) => {
+    e.preventDefault();
+    if (!fmName.trim()) return;
+    const uid = localStorage.getItem("userId");
+    if (!uid) return;
+    try {
+      setErrorMessage("");
+      await addFamilyProfile(uid, { name: fmName.trim(), relation: fmRelation });
+      setFmName("");
+      const r = await listFamilyProfiles(uid);
+      setFamilyProfiles(r.profiles || []);
+      setSuccessMessage("Family member added.");
+    } catch (err) {
+      setErrorMessage(err.message || "Could not add family member.");
+    }
+  };
+
+  const handleDeleteFamily = async (profileId) => {
+    const uid = localStorage.getItem("userId");
+    if (!uid) return;
+    if (!window.confirm("Remove this profile?")) return;
+    try {
+      await deleteFamilyProfile(uid, profileId);
+      const r = await listFamilyProfiles(uid);
+      setFamilyProfiles(r.profiles || []);
+      setSuccessMessage("Profile removed.");
+    } catch (err) {
+      setErrorMessage(err.message || "Could not remove profile.");
+    }
+  };
 
   // Handle form changes (handles nested 'address' separately)
   const handleChange = (field, value) => {
@@ -203,11 +286,21 @@ const Profile = () => {
       };
 
       const response = await updateUserInfo(null, apiData);
-      setSuccessMessage(response.msg || "Profile updated successfully!");
+      setSuccessMessage(response.msg || response.message || "Profile updated successfully!");
     } catch (error) {
-      setErrorMessage(
-        error.msg || "An error occurred while updating the user."
-      );
+      const errorMsg = error.response?.data?.detail || 
+                      error.response?.data?.message || 
+                      error.msg || 
+                      error.message || 
+                      "An error occurred while updating the user.";
+      setErrorMessage(errorMsg);
+      
+      // If 401, redirect to login
+      if (error.response?.status === 401) {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -263,92 +356,99 @@ const Profile = () => {
     return Math.round((completed / requiredFields.length) * 100);
   };
 
-  // Handle profile picture upload
+  // Handle profile picture upload (data URL stored via PATCH /api/users/auth/update)
   const handleProfilePicChange = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
+    if (!localStorage.getItem("accessToken")) {
+      setErrorMessage("Please log in to upload a profile picture.");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setErrorMessage("Please choose an image file (JPEG, PNG, WebP, etc.).");
+      return;
+    }
+    if (file.size > MAX_PROFILE_IMAGE_BYTES) {
+      setErrorMessage("Image must be 2MB or smaller.");
+      return;
+    }
     setUploading(true);
     setErrorMessage("");
     setSuccessMessage("");
     try {
-      const formData = new FormData();
-      formData.append("image", file);
-
-      // Get token from localStorage
-      const accessToken = localStorage.getItem("accessToken");
-
-      if (!accessToken) {
-        throw new Error("No authentication token found. Please login again.");
+      const b64 = await fileToBase64(file);
+      const mime = file.type || "image/jpeg";
+      const dataUrl = `data:${mime};base64,${b64}`;
+      const response = await updateUserInfo(null, {
+        profile_picture: { url: dataUrl },
+      });
+      if (response.user) {
+        setUserData((prev) => ({
+          ...mapApiUserToForm(response.user),
+          customPreferredTime: prev?.customPreferredTime,
+        }));
+      } else {
+        setUserData((prev) => ({
+          ...prev,
+          profilePicture: { url: dataUrl },
+        }));
       }
-
-      // Profile picture upload not implemented in backend yet
-      setSuccessMessage("Profile picture upload feature coming soon!");
-      
-      // TODO: Implement profile picture upload in backend
-      // const response = await axios.post(
-      //   `${API_BASE_URL}/api/auth/profile-picture`,
-      //   formData,
-      //   {
-      //     headers: {
-      //       "Content-Type": "multipart/form-data",
-      //       Authorization: `Bearer ${accessToken}`,
-      //     },
-      //   }
-      // );
-
-      // // Update profile picture in state
-      // setUserData((prev) => ({
-      //   ...prev,
-      //   profilePicture: response.data.data.profilePicture,
-      // }));
-      // setSuccessMessage(
-      //   response.data.msg || "Profile picture uploaded successfully!"
-      // );
+      setSuccessMessage(
+        response.msg || response.message || "Profile picture updated."
+      );
+      if (profilePicInputRef.current) profilePicInputRef.current.value = "";
     } catch (error) {
+      const detail =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.detail ||
+        error.msg ||
+        error.message;
       setErrorMessage(
-        error.response?.data?.msg ||
-          error.message ||
-          "Failed to upload profile picture. Please try logging in again."
+        typeof detail === "string"
+          ? detail
+          : "Failed to upload profile picture. Try again or use a smaller image."
       );
     } finally {
       setUploading(false);
     }
   };
 
-  // Handle profile picture removal
   const handleRemoveProfilePic = async () => {
+    if (!localStorage.getItem("accessToken")) {
+      setErrorMessage("Please log in to change your profile picture.");
+      return;
+    }
+    setUploading(true);
     setErrorMessage("");
     setSuccessMessage("");
     try {
-      const accessToken = localStorage.getItem("accessToken");
-
-      if (!accessToken) {
-        throw new Error("No authentication token found. Please login again.");
+      const response = await updateUserInfo(null, { profile_picture: null });
+      if (response.user) {
+        setUserData((prev) => ({
+          ...mapApiUserToForm(response.user),
+          customPreferredTime: prev?.customPreferredTime,
+        }));
+      } else {
+        setUserData((prev) => ({ ...prev, profilePicture: null }));
       }
-
-      // Profile picture removal not implemented in backend yet
-      setSuccessMessage("Profile picture removal feature coming soon!");
-      
-      // TODO: Implement profile picture removal in backend
-      // const response = await axios.delete(
-      //   `${API_BASE_URL}/api/auth/profile-picture`,
-      //   {
-      //     headers: {
-      //       Authorization: `Bearer ${accessToken}`,
-      //   },
-      //   }
-      // );
-
-      // setUserData((prev) => ({ ...prev, profilePicture: null }));
-      // setSuccessMessage(
-      //   response.data.msg || "Profile picture removed successfully!"
-      // );
-    } catch (error) {
-      setErrorMessage(
-        error.response?.data?.msg ||
-          error.message ||
-          "Failed to remove profile picture. Please try logging in again."
+      setSuccessMessage(
+        response.msg || response.message || "Profile picture removed."
       );
+    } catch (error) {
+      const detail =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.detail ||
+        error.msg ||
+        error.message;
+      setErrorMessage(
+        typeof detail === "string"
+          ? detail
+          : "Failed to remove profile picture."
+      );
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -400,6 +500,69 @@ const Profile = () => {
         </div>
       )}
 
+      {isZoctorFastApiBackend() && userData && (
+        <div className="max-w-4xl mx-auto mb-8 p-6 bg-white rounded-2xl border border-[#a0a0a07c] shadow-md">
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Family profiles</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Manage dependents for paid reports and Vitality Track (same fields as your signup preferences).
+          </p>
+          {familyLoading ? (
+            <p className="text-gray-500">Loading profiles…</p>
+          ) : (
+            <ul className="space-y-2 mb-4">
+              {(familyProfiles || []).map((p) => (
+                <li
+                  key={p.profile_id || p.id}
+                  className="flex justify-between items-center border rounded-lg px-3 py-2 bg-gray-50"
+                >
+                  <span className="text-gray-800">
+                    <strong>{p.name}</strong>
+                    <span className="text-gray-500 text-sm ml-2">({p.relation})</span>
+                  </span>
+                  {p.relation !== "self" && !(String(p.profile_id || p.id).endsWith("_self")) && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteFamily(p.profile_id || p.id)}
+                      className="text-red-600 text-sm hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <form onSubmit={handleAddFamily} className="flex flex-wrap gap-3 items-end">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Name</label>
+              <input
+                value={fmName}
+                onChange={(e) => setFmName(e.target.value)}
+                className="px-3 py-2 border rounded-lg"
+                placeholder="Family member name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Relation</label>
+              <select
+                value={fmRelation}
+                onChange={(e) => setFmRelation(e.target.value)}
+                className="px-3 py-2 border rounded-lg"
+              >
+                <option value="spouse">Spouse</option>
+                <option value="child">Child</option>
+                <option value="parent">Parent</option>
+                <option value="sibling">Sibling</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <button type="submit" className="bg-prime text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+              Add member
+            </button>
+          </form>
+        </div>
+      )}
+
       {/* Profile Form */}
       <div className="bg-gray-100 flex items-center justify-center p-4">
         <form
@@ -421,6 +584,7 @@ const Profile = () => {
                   {uploading ? "Uploading..." : <CiEdit />}
                 </label>
                 <input
+                  ref={profilePicInputRef}
                   id="profilePic"
                   type="file"
                   accept="image/*"

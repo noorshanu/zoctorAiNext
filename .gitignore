@@ -1,3 +1,5 @@
 node_modules
 .env    
 .next
+out.zip
+out/.DS_Store

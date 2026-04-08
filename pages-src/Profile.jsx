@@ -1,4 +1,4 @@
-
+"use client";
 import Layout from '../components/Dashboard/Layout'
 import ProfileForm from '../components/Dashboard/ProfileSetting'
 

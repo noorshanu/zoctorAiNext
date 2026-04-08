@@ -1,12 +1,19 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { registerUser } from "../../utils/api";
+import { normalizeApiError } from "../../utils/apiErrors";
+import { useAuth } from "../../AuthProvider";
+import { AuthError, AuthInfo, AuthSuccess } from "../../components/auth/AuthFeedback";
 import "react-phone-number-input/style.css";
 import PhoneInput from "react-phone-number-input";
 import { IoEye } from "react-icons/io5";
 import { IoIosEyeOff } from "react-icons/io";
 
 const SignUp = () => {
+  const router = useRouter();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -24,6 +31,7 @@ const SignUp = () => {
 
   const [passwordStrength, setPasswordStrength] = useState("");
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [success, setSuccess] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
@@ -59,6 +67,7 @@ const SignUp = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
     setSuccess(null);
     setIsLoading(true);
 
@@ -100,6 +109,21 @@ const SignUp = () => {
 
       if (response.status) {
         setSuccess(response.message);
+        // FastAPI returns JWT + user on signup; persist whenever present (not only when NEXT_PUBLIC_USE_FASTAPI=1)
+        if (response.accessToken && response.user) {
+          localStorage.setItem("accessToken", response.accessToken);
+          if (response.refreshToken) {
+            localStorage.setItem("refreshToken", response.refreshToken);
+          }
+          localStorage.setItem("userId", String(response.user.id));
+          localStorage.setItem("user", JSON.stringify(response.user));
+          login(response.accessToken, {
+            userId: String(response.user.id),
+            firstName: response.user.first_name,
+          });
+          router.push("/dashboard");
+          return;
+        }
         setIsRegistered(true);
       } else {
         // Handle specific error messages
@@ -107,15 +131,18 @@ const SignUp = () => {
         setError(response.message || "Registration failed. Please try again.");
       }
     } catch (err) {
-      // Fallback error handling
-
-      setError(err.message || "Registration failed. Please try again.");
+      const { message, fieldErrors: fe } = normalizeApiError(
+        err,
+        "Registration failed. Please try again."
+      );
+      setError(message);
+      setFieldErrors(fe && Object.keys(fe).length ? fe : {});
     } finally {
       setIsLoading(false);
     }
   };
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center px-4 mt-[5%] w-full max-w-full sm:max-w-3xl mx-auto">
+    <div className="min-h-screen bg-[#0e0e0e] flex flex-col items-center px-4 mt-[5%] w-full max-w-full sm:max-w-3xl mx-auto pb-12">
       {!isRegistered ? (
         <div className="bg-[#000000cc] border-prime border rounded-lg shadow-lg py-4 px-6   no-transition w-full mx-auto">
           <h1 className="text-2xl font-semibold mb-4 border-b-2 pb-2 border-[#0062f1]">
@@ -125,16 +152,29 @@ const SignUp = () => {
             className=" shadow-md rounded-md p-6 max-w-2xl w-full text-black"
             onSubmit={handleSubmit}
           >
-            {/* Error/Success Messages */}
             {error && (
-              <p
-                className={`${error === "Passwords do not match" ? "text-yellow-600" : "text-red-500"} mb-4`}
-              >
-                {error}
-              </p>
+              <div className="mb-4 space-y-2">
+                <AuthError>
+                  {error}
+                  {error === "Passwords do not match" && (
+                    <span className="block text-amber-200/90 text-xs mt-1">
+                      Make sure both password fields match before submitting.
+                    </span>
+                  )}
+                </AuthError>
+                {Object.keys(fieldErrors).length > 0 && (
+                  <ul className="text-sm text-red-200/90 list-disc list-inside space-y-1">
+                    {Object.entries(fieldErrors).map(([field, msg]) => (
+                      <li key={field}>
+                        <span className="font-medium">{field}:</span> {msg}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
-            {success && <p className="text-green-500 mb-4">{success}</p>}
-            {isLoading && <p className="text-blue-500 mb-4">Processing...</p>}
+            {success && <AuthSuccess className="mb-4">{success}</AuthSuccess>}
+            {isLoading && <AuthInfo className="mb-4">Processing…</AuthInfo>}
 
             {/* Basic Information */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -355,9 +395,9 @@ const SignUp = () => {
                   className="mr-2 text-white"
                 />
                 I agree to the{" "}
-                <a href="/terms" className="text-blue-600 underline">
+                <Link href="/terms-condition" className="text-prime hover:underline">
                   Terms & Conditions
-                </a>
+                </Link>
               </label>
             </div>
             <div className="mb-4">
@@ -369,9 +409,9 @@ const SignUp = () => {
                   className="mr-2 text-white"
                 />
                 I agree to the{" "}
-                <a href="/privacy" className="text-blue-600 underline">
+                <Link href="/privacy-policy" className="text-prime hover:underline">
                   Privacy Policy
-                </a>
+                </Link>
               </label>
             </div>
 
@@ -385,22 +425,29 @@ const SignUp = () => {
             >
               {isLoading ? "Registering..." : "Save"}
             </button>
+            <p className="text-sm text-center text-white/80 mt-4">
+              Already have an account?{" "}
+              <Link href="/login" className="text-prime hover:underline font-medium">
+                Log in
+              </Link>
+            </p>
           </form>
         </div>
       ) : (
-        <div className="bg-white shadow-md rounded-md p-6 max-w-2xl w-full text-center">
-          <h2 className="text-xl font-semibold mb-4 text-[#000]">
+        <div className="bg-[#000000cc] border border-prime rounded-lg shadow-lg p-8 max-w-2xl w-full text-center">
+          <h2 className="text-xl font-semibold mb-4 text-white">
             Registration Successful!
           </h2>
-          <p className="mb-6 text-[#000]">
-            Please check your email to verify your account.
+          <p className="mb-6 text-white/80">
+            {success ||
+              "You can sign in with your email and password. If your server uses email verification, check your inbox."}
           </p>
-          <a
+          <Link
             href="/login"
-            className="bg-[#fff] border-[#000] border text-[#000] text-white py-2 px-4 rounded-md hover:bg-blue-700"
+            className="inline-block bg-prime text-white py-2 px-6 rounded-lg hover:bg-blue-600 font-medium"
           >
-            Login
-          </a>
+            Go to login
+          </Link>
         </div>
       )}
     </div>

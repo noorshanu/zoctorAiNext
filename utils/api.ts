@@ -1,6 +1,33 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000';
+function isBrowserLocalDev(): boolean {
+  if (typeof window === 'undefined') return false;
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+}
+
+// Support both local and production environments (127.0.0.1 must match localhost or API calls wrongly hit production)
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (isBrowserLocalDev() ? 'http://127.0.0.1:8000' : 'https://zaidi123.pythonanywhere.com');
+
+/**
+ * When true, use Zoctor FastAPI routes: `/api/users/auth/*`, `/api/v1/*` (chat, PDF, summaries).
+ * Enabled if NEXT_PUBLIC_USE_FASTAPI=1, NEXT_PUBLIC_API_URL points at a local backend, or the app is opened on localhost/127.0.0.1.
+ */
+export const isZoctorFastApiBackend = (): boolean => {
+  if (process.env.NEXT_PUBLIC_USE_FASTAPI === '1') return true;
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  if (/localhost|127\.0\.0\.1|\[::1\]/.test(envUrl)) return true;
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]') return true;
+  }
+  return false;
+};
+
+export const apiV1Base = (): string =>
+  `${String(API_BASE_URL).replace(/\/$/, '')}/api/v1`;
 
 // Create axios instance with default config
 const api = axios.create({
@@ -13,15 +40,25 @@ const api = axios.create({
   maxBodyLength: Infinity,
 });
 
-// Add request interceptor for debugging
+const logApiDebug =
+  typeof process !== 'undefined' && process.env.NODE_ENV === 'development';
+
+// Add request interceptor for debugging (dev only)
 api.interceptors.request.use(
   (config) => {
-    console.log('Request config:', {
-      url: config.url,
-      method: config.method,
-      headers: config.headers,
-      data: config.data instanceof FormData ? 'FormData' : config.data
-    });
+    if (logApiDebug) {
+      const safeData =
+        config.data && typeof config.data === 'object' && config.url?.includes('auth')
+          ? '[redacted]'
+          : config.data instanceof FormData
+            ? 'FormData'
+            : config.data;
+      console.log('Request config:', {
+        url: config.url,
+        method: config.method,
+        data: safeData,
+      });
+    }
     const token = localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -34,58 +71,86 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor for debugging
+// Add response interceptor for debugging (dev only)
 api.interceptors.response.use(
   (response) => {
-    console.log('Response:', {
-      status: response.status,
-      headers: response.headers,
-      data: response.data
-    });
+    if (logApiDebug) {
+      console.log('Response:', { status: response.status, url: response.config?.url });
+    }
     return response;
   },
   (error) => {
-    console.error('Response error:', {
-      message: error.message,
-      status: error.response?.status,
-      data: error.response?.data,
-      headers: error.response?.headers
-    });
+    if (logApiDebug) {
+      console.error('Response error:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url,
+      });
+    }
     if (error.response?.status === 401) {
-      // Handle token refresh or logout
-      localStorage.removeItem('accessToken');
-      window.location.href = '/login';
+      const reqUrl = String(error.config?.url ?? '');
+      const isPublicAuth =
+        reqUrl.includes('/api/users/auth/login') ||
+        reqUrl.includes('/api/users/auth/signup');
+      if (!isPublicAuth) {
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
 );
 
-// File upload function with enhanced error handling
-export const uploadFile = async (file) => {
+// Helper function to convert File to base64
+export const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+// File upload function - Updated to use base64 as per backend API
+export const uploadFile = async (file: File, sessionId?: string) => {
   try {
     // Validate file size (10MB limit)
     if (file.size > 10 * 1024 * 1024) {
       throw new Error('File size exceeds 10MB limit');
     }
 
-    // Validate file type
-    if (file.type !== 'application/pdf') {
-      throw new Error('Only PDF files are allowed');
+    // Validate file type - supports PDF, TXT, MD
+    const allowedTypes = ['application/pdf', 'text/plain', 'text/markdown'];
+    const allowedExtensions = ['.pdf', '.txt', '.md'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+      throw new Error('Only PDF, TXT, and MD files are allowed');
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
+    // Convert file to base64
+    const base64Data = await fileToBase64(file);
 
-    // Log form data
-    console.log('FormData contents:', {
-      file: file.name,
+    const payload = {
+      filename: file.name,
+      data_base64: base64Data,
+      ...(sessionId && { session_id: sessionId })
+    };
+
+    console.log('Uploading file:', {
+      filename: file.name,
       size: file.size,
-      type: file.type
+      type: file.type,
+      base64Length: base64Data.length
     });
 
-    const response = await api.post('/uploadFile', formData, {
+    const response = await api.post('/api/documents/upload/', payload, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': 'application/json',
       },
       onUploadProgress: (progressEvent) => {
         const percentCompleted = Math.round(
@@ -96,14 +161,20 @@ export const uploadFile = async (file) => {
     });
 
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
+    const errorDetail = error.response?.data?.detail || error.response?.data?.error_message || error.response?.data?.error || error.message;
     console.error('Upload error:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
+      detail: errorDetail,
+      error_type: error.response?.data?.error_type,
       stack: error.stack
     });
-    throw error;
+    // Throw a more descriptive error
+    const enhancedError = new Error(errorDetail || error.message);
+    (enhancedError as any).response = error.response;
+    throw enhancedError;
   }
 };
 
@@ -145,13 +216,16 @@ export const registerUser = async (userData: {
     console.log("Signup raw response:", response.status, response.data);
 
     // Transform backend response to match frontend expectations (session-based)
+    const d = response.data;
     return {
       status: response.status >= 200 && response.status < 300,
-      message: response.data?.message ?? "Registration completed",
-      sessionId: response.data?.session_id,
-      ttlSeconds: response.data?.ttl_seconds,
-      cooldownWaitSeconds: response.data?.cooldown_wait_seconds,
-      user: response.data?.user
+      message: d?.message ?? 'Registration completed',
+      sessionId: d?.session_id,
+      ttlSeconds: d?.ttl_seconds,
+      cooldownWaitSeconds: d?.cooldown_wait_seconds,
+      user: d?.user,
+      accessToken: d?.access,
+      refreshToken: d?.refresh,
     };
  
   } catch (error: any) {
@@ -224,7 +298,11 @@ export const refreshAccessToken = async () => {
     if (newAccess) {
       localStorage.setItem('accessToken', newAccess);
     }
-    return response.data;
+    return {
+      ...response.data,
+      status: !!newAccess,
+      accessToken: newAccess,
+    };
   } catch (error) {
     console.error('Token refresh error:', error);
     throw error;
@@ -274,5 +352,322 @@ export const updateUserInfo = async (userId, updatedData) => {
     throw error.response?.data || { msg: "An unknown error occurred" };
   }
 };
+
+// ==================== Chat API ====================
+
+/**
+ * Create a chat message and get stream_id for SSE streaming
+ * @param message - User's message
+ * @param conversationId - Optional existing conversation ID
+ * @returns Object with stream_id, conversation_id, and user_files
+ */
+export const createChatMessage = async (message: string, conversationId?: number) => {
+  try {
+    const response = await api.post('/api/chat/', {
+      message,
+      ...(conversationId && { conversation_id: conversationId })
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Create chat message error:", error.response?.data || error.message);
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Stream chat response using Server-Sent Events (SSE)
+ * @param streamId - Stream ID from createChatMessage
+ * @param onMessage - Callback for each word received
+ * @param onDone - Callback when stream completes
+ * @param onError - Callback for errors
+ * @returns EventSource instance (can be used to close connection)
+ */
+export const streamChatResponse = (
+  streamId: string,
+  onMessage: (word: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void
+): EventSource => {
+  const token = localStorage.getItem('accessToken') || '';
+  const url = `${API_BASE_URL}/api/chat/stream/${streamId}/?token=${token}`;
+  
+  const eventSource = new EventSource(url);
+
+  eventSource.onmessage = (event) => {
+    if (event.data === '[END]') {
+      eventSource.close();
+      onDone();
+    } else {
+      onMessage(event.data);
+    }
+  };
+
+  eventSource.addEventListener('done', () => {
+    eventSource.close();
+    onDone();
+  });
+
+  eventSource.addEventListener('error', (event: any) => {
+    eventSource.close();
+    onError(event.data || 'Stream error');
+  });
+
+  eventSource.onerror = (error) => {
+    console.error('EventSource error:', error);
+    eventSource.close();
+    onError('Connection error');
+  };
+
+  return eventSource;
+};
+
+// ==================== Document API ====================
+
+/**
+ * Get list of user's documents
+ */
+export const getDocuments = async () => {
+  try {
+    const response = await api.get('/api/documents/');
+    return response.data;
+  } catch (error: any) {
+    console.error("Get documents error:", error.response?.data || error.message);
+    throw error.response?.data || error.message;
+  }
+};
+
+/** Attach AI summary to an uploaded document (Your Reports). */
+export const updateDocumentSummary = async (documentId: string, summary: string) => {
+  const response = await api.patch(`/api/documents/${documentId}/`, { summary });
+  return response.data;
+};
+
+// ==================== Summary API ====================
+
+/**
+ * Generate summary from document or raw text
+ * @param data - Object with session_id, raw_text, or document_id
+ */
+export const generateSummary = async (data: {
+  session_id?: string;
+  raw_text?: string;
+  document_id?: number;
+}) => {
+  try {
+    const response = await api.post('/api/summaries/generate/', data);
+    return response.data;
+  } catch (error: any) {
+    console.error("Generate summary error:", error.response?.data || error.message);
+    throw error.response?.data || error.message;
+  }
+};
+
+// ==================== Retrieval API ====================
+
+/**
+ * Lookup treatment cost information
+ * @param treatment - Treatment name
+ */
+export const lookupCost = async (treatment: string) => {
+  try {
+    const response = await api.get(`/api/retrieval/cost/?treatment=${encodeURIComponent(treatment)}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Cost lookup error:", error.response?.data || error.message);
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Search hospitals
+ * @param query - Search query
+ * @param city - Optional city filter
+ */
+export const searchHospitals = async (query: string, city?: string) => {
+  try {
+    const params = new URLSearchParams({ q: query });
+    if (city) params.append('city', city);
+    const response = await api.get(`/api/retrieval/hospitals/?${params.toString()}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Hospital search error:", error.response?.data || error.message);
+    throw error.response?.data || error.message;
+  }
+};
+
+// ==================== Telemetry API ====================
+
+/**
+ * Log funnel event for analytics
+ * @param data - Event data with event_type, session_id, source, metadata
+ */
+export const logFunnelEvent = async (data: {
+  session_id?: string;
+  event_type: string;
+  source?: string;
+  metadata?: Record<string, any>;
+}) => {
+  try {
+    const response = await api.post('/api/telemetry/funnel/', data);
+    return response.data;
+  } catch (error: any) {
+    console.error("Log funnel event error:", error.response?.data || error.message);
+    throw error.response?.data || error.message;
+  }
+};
+
+// ==================== Accounts API ====================
+
+/**
+ * Get or create a session ID
+ * @param sessionId - Optional existing session ID
+ */
+export const ensureSession = async (sessionId?: string) => {
+  try {
+    const url = sessionId 
+      ? `/api/accounts/session/?session_id=${sessionId}`
+      : '/api/accounts/session/';
+    const response = await api.get(url);
+    return response.data;
+  } catch (error: any) {
+    console.error("Ensure session error:", error.response?.data || error.message);
+    throw error.response?.data || error.message;
+  }
+};
+
+// ==================== Zoctor FastAPI (Mem_Update backend) ====================
+
+async function authHeadersJson(): Promise<HeadersInit> {
+  const token =
+    typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  const h: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) h.Authorization = `Bearer ${token}`;
+  return h;
+}
+
+/** Extract text from a PDF via FastAPI (requires auth). */
+export const zoctorExtractPdfText = async (
+  file: File
+): Promise<{ text: string; pages?: number }> => {
+  const base64Data = await fileToBase64(file);
+  const res = await fetch(`${apiV1Base()}/reports/pdf-text`, {
+    method: 'POST',
+    headers: await authHeadersJson(),
+    body: JSON.stringify({ file_base64: base64Data, filename: file.name }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.detail || `PDF extract failed (${res.status})`);
+  }
+  return data;
+};
+
+/** Run summary pipeline (GCS + LLM) on raw report text. */
+export const zoctorGenerateSummary = async (payload: {
+  user_id: string;
+  raw_text: string;
+  session_id?: string;
+  tier?: string;
+  location?: string;
+  region?: string;
+}) => {
+  const res = await fetch(`${apiV1Base()}/chat/summary`, {
+    method: 'POST',
+    headers: await authHeadersJson(),
+    body: JSON.stringify({
+      user_id: payload.user_id,
+      raw_text: payload.raw_text,
+      session_id: payload.session_id,
+      tier: payload.tier,
+      location: payload.location,
+      region: payload.region,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.detail || `Summary failed (${res.status})`);
+  }
+  return data;
+};
+
+/** Non-streaming RAG reply. */
+export const zoctorChatReply = async (payload: {
+  user_id: string;
+  message: string;
+  context?: string;
+  funnel_stage?: string;
+  tier?: string;
+  session_id?: string;
+  location?: string;
+  region?: string;
+}) => {
+  const res = await fetch(`${apiV1Base()}/chat/reply`, {
+    method: 'POST',
+    headers: await authHeadersJson(),
+    body: JSON.stringify({
+      user_id: payload.user_id,
+      message: payload.message,
+      context: payload.context ?? '',
+      funnel_stage: payload.funnel_stage,
+      tier: payload.tier,
+      session_id: payload.session_id,
+      location: payload.location,
+      region: payload.region,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.detail || `Chat failed (${res.status})`);
+  }
+  return data as { reply: string };
+};
+
+export const listFamilyProfiles = async (userId: string) => {
+  const res = await fetch(
+    `${String(API_BASE_URL).replace(/\/$/, '')}/api/paid-reports/profiles/${encodeURIComponent(userId)}`,
+    { headers: await authHeadersJson(), method: 'GET' }
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.detail || `Profiles failed (${res.status})`);
+  }
+  return data as { profiles: any[]; count: number };
+};
+
+export const addFamilyProfile = async (
+  userId: string,
+  body: { name: string; relation: string }
+) => {
+  const res = await fetch(
+    `${String(API_BASE_URL).replace(/\/$/, '')}/api/paid-reports/profiles/${encodeURIComponent(userId)}`,
+    {
+      method: 'POST',
+      headers: await authHeadersJson(),
+      body: JSON.stringify({ name: body.name, relation: body.relation }),
+    }
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.detail || `Add profile failed (${res.status})`);
+  }
+  return data;
+};
+
+export const deleteFamilyProfile = async (userId: string, profileId: string) => {
+  const res = await fetch(
+    `${String(API_BASE_URL).replace(
+      /\/$/,
+      ''
+    )}/api/paid-reports/profiles/${encodeURIComponent(userId)}/${encodeURIComponent(profileId)}`,
+    { method: 'DELETE', headers: await authHeadersJson() }
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.detail || `Delete profile failed (${res.status})`);
+  }
+  return data;
+};
+
+export { normalizeApiError } from './apiErrors';
 
 export default api;

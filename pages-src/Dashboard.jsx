@@ -1,139 +1,185 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { FiFileText, FiAward, FiClock, FiShield, FiTrendingUp, FiUsers } from 'react-icons/fi';
-import Layout from '../components/Dashboard/Layout';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import {
+  FiFileText,
+  FiAward,
+  FiClock,
+  FiShield,
+  FiTrendingUp,
+  FiUsers,
+  FiArrowRight,
+} from "react-icons/fi";
+import Layout from "../components/Dashboard/Layout";
+
+const features = [
+  {
+    icon: FiClock,
+    title: "Instant analysis",
+    description:
+      "Upload PDFs and get structured insights in minutes with AI-assisted review.",
+    accent: "from-prime/20 to-blue-600/10",
+    iconClass: "text-prime",
+  },
+  {
+    icon: FiAward,
+    title: "Clinical-grade clarity",
+    description:
+      "Summaries highlight key values and terms so you can discuss them with your doctor.",
+    accent: "from-emerald-500/15 to-emerald-600/5",
+    iconClass: "text-emerald-600",
+  },
+  {
+    icon: FiShield,
+    title: "Secure & private",
+    description:
+      "Your uploads are tied to your account and handled with modern transport security.",
+    accent: "from-violet-500/15 to-violet-600/5",
+    iconClass: "text-violet-600",
+  },
+  {
+    icon: FiTrendingUp,
+    title: "Trend-friendly",
+    description:
+      "Build a library of reports over time to spot patterns in your uploaded documents.",
+    accent: "from-amber-500/15 to-amber-600/5",
+    iconClass: "text-amber-600",
+  },
+  {
+    icon: FiUsers,
+    title: "Share when you choose",
+    description:
+      "Export or summarize content to share with family or care teams on your terms.",
+    accent: "from-rose-500/15 to-rose-600/5",
+    iconClass: "text-rose-600",
+  },
+  {
+    icon: FiFileText,
+    title: "Plain-language summary",
+    description:
+      "Turn dense lab PDFs into readable explanations you can actually use.",
+    accent: "from-cyan-500/15 to-cyan-600/5",
+    iconClass: "text-cyan-600",
+  },
+];
 
 function Dashboard() {
   const [userId, setUserId] = useState(null);
+  const [firstName, setFirstName] = useState("");
 
   useEffect(() => {
-    // Get userId from localStorage when component mounts
-    const storedUserId = localStorage.getItem('userId');
-    if (storedUserId) {
-      setUserId(storedUserId);
+    const storedUserId = localStorage.getItem("userId");
+    if (storedUserId) setUserId(storedUserId);
+    const fn = localStorage.getItem("firstName");
+    if (fn) {
+      setFirstName(fn);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem("user");
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u?.first_name) setFirstName(u.first_name);
+      }
+    } catch {
+      /* ignore */
     }
   }, []);
 
+  const reportsHref = userId ? "/reports/" : "/login";
+  const greeting = firstName
+    ? `Welcome back, ${firstName}`
+    : "Welcome to ZoctorAI";
+
   return (
     <Layout>
-      {/* Welcome Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-[#000]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="text-center">
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
-              Welcome to Zoctor Ai Report Analysis
-            </h1>
-            <p className="text-lg sm:text-xl text-blue-100 max-w-2xl mx-auto mb-8">
-              Get instant insights from your medical reports using advanced AI analysis
+      <div className="max-w-6xl mx-auto space-y-10 sm:space-y-14">
+        {/* Hero */}
+        <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-gray-200/80 bg-gradient-to-br from-slate-900 via-slate-800 to-[#0a1628] text-white shadow-xl shadow-slate-900/10">
+          <div
+            className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-prime/25 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-blue-400/10 blur-3xl"
+            aria-hidden
+          />
+          <div className="relative px-6 py-12 sm:px-10 sm:py-16 lg:px-14 lg:py-20">
+            <p className="text-sm font-medium uppercase tracking-wider text-blue-200/80">
+              Dashboard
             </p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+              {greeting}
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+              Upload medical reports, run AI analysis, and keep everything in one
+              place under{" "}
+              <span className="font-medium text-white">Your reports</span> and{" "}
+              <span className="font-medium text-white">Get analysis</span>.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                href={reportsHref}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-prime px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-prime/25 transition hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-prime focus:ring-offset-2 focus:ring-offset-slate-900"
+              >
+                <FiFileText className="h-5 w-5 shrink-0" aria-hidden />
+                Get report analysis
+                <FiArrowRight className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+              </Link>
+              <Link
+                href="/your-report/"
+                className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/5 px-6 py-3.5 text-base font-medium text-white backdrop-blur-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30"
+              >
+                View your reports
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Features */}
+        <section>
+          <div className="mb-8 text-center sm:mb-10">
+            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+              Why use ZoctorAI
+            </h2>
+            <p className="mx-auto mt-2 max-w-2xl text-gray-600">
+              Tools designed around your workflow—from upload to summary to follow-up
+              questions.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {features.map(
+              ({ icon: Icon, title, description, accent, iconClass }) => (
+                <article
+                  key={title}
+                  className="group relative flex flex-col rounded-2xl border border-gray-200/90 bg-white p-6 shadow-sm transition duration-300 hover:border-prime/30 hover:shadow-md"
+                >
+                  <div
+                    className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${accent} ring-1 ring-black/5`}
+                  >
+                    <Icon className={`h-6 w-6 ${iconClass}`} aria-hidden />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+                  <p className="mt-2 flex-1 text-sm leading-relaxed text-gray-600">
+                    {description}
+                  </p>
+                  <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-gray-200 to-transparent opacity-0 transition group-hover:opacity-100" />
+                </article>
+              )
+            )}
+          </div>
+
+          <div className="mt-12 flex justify-center">
             <Link
-              href={userId ? `/reports/${userId}` : '/login'}
-              className="inline-flex text-[#fff] items-center px-6 py-3 border border-transparent text-base font-medium bg-prime rounded-md text-indigo-700 bg-white hover:bg-blue-50 transition-colors duration-300"
+              href={reportsHref}
+              className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-8 py-4 text-base font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
             >
-              <FiFileText className="w-5 h-5 mr-2" />
-              Get Your Report Analysis Today
+              Start your analysis
+              <FiFileText className="h-5 w-5" aria-hidden />
             </Link>
           </div>
-        </div>
-      </div>
-
-      {/* Features Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-[#000]">
-        <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
-          Why Choose Our Analysis
-        </h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Feature 1 */}
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 border border-prime">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-              <FiClock className="w-6 h-6 text-blue-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Instant Analysis
-            </h3>
-            <p className="text-gray-600">
-              Get detailed insights from your medical reports within seconds using our advanced AI technology.
-            </p>
-          </div>
-
-          {/* Feature 2 */}
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 border border-prime">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-              <FiAward className="w-6 h-6 text-green-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Expert Precision
-            </h3>
-            <p className="text-gray-600">
-              Our AI is trained on millions of medical reports to provide accurate and reliable analysis.
-            </p>
-          </div>
-
-          {/* Feature 3 */}
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 border border-prime">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-              <FiShield className="w-6 h-6 text-purple-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Secure & Private
-            </h3>
-            <p className="text-gray-600">
-              Your medical data is encrypted and protected with the highest security standards.
-            </p>
-          </div>
-
-          {/* Feature 4 */}
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 border border-prime">
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
-              <FiTrendingUp className="w-6 h-6 text-orange-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Trend Analysis
-            </h3>
-            <p className="text-gray-600">
-              Track your health metrics over time with comprehensive trend analysis and insights.
-            </p>
-          </div>
-
-          {/* Feature 5 */}
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 border border-prime">
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
-              <FiUsers className="w-6 h-6 text-red-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Easy Sharing
-            </h3>
-            <p className="text-gray-600">
-              Securely share your analysis with healthcare providers or family members.
-            </p>
-          </div>
-
-          {/* Feature 6 */}
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 border border-prime  ">
-            <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
-              <FiFileText className="w-6 h-6 text-teal-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Smart Summary
-            </h3>
-            <p className="text-gray-600">
-              Get clear, actionable summaries of your medical reports in plain language.
-            </p>
-          </div>
-        </div>
-
-        {/* Call to Action */}
-        <div className="text-center mt-16">
-          <Link
-            href={userId ? `/reports/${userId}` : '/login'}
-            className="inline-flex text-[#fff] bg-prime items-center px-8 py-4 border border-transparent text-lg font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-300"
-          >
-            Start Your Analysis
-            <FiFileText className="w-5 h-5 ml-2" />
-          </Link>
-        </div>
+        </section>
       </div>
     </Layout>
   );

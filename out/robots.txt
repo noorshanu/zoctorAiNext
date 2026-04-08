@@ -1,0 +1,27 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://zoctorai.com/sitemap.xml
+
+# Disallow private/user-specific pages
+Disallow: /dashboard
+Disallow: /profile/
+Disallow: /reports/
+Disallow: /your-report/
+Disallow: /reset-password/
+Disallow: /email-verify
+
+# Allow important pages
+Allow: /
+Allow: /about
+Allow: /how-it-works
+Allow: /contactus
+Allow: /faq
+Allow: /login
+Allow: /signup
+Allow: /privacy-policy
+Allow: /terms-condition
+
+# Crawl delay (optional)
+Crawl-delay: 1

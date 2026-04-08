@@ -3,14 +3,30 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Dashboard/Layout';
-import axios from 'axios';
+import api, { API_BASE_URL } from '../utils/api';
 import { FiFileText, FiDownload, FiEye, FiAlertCircle, FiX, FiTrash2 } from 'react-icons/fi';
 import { FiFilePlus } from "react-icons/fi";
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip } from 'react-tooltip';
 
-const API_BASE_URL = "http://localhost:8000";
+async function fetchDocumentBlob(docId) {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const base = String(API_BASE_URL).replace(/\/$/, "");
+  const res = await fetch(
+    `${base}/api/documents/${encodeURIComponent(docId)}/download/`,
+    {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+    }
+  );
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `Download failed (${res.status})`);
+  }
+  return res.blob();
+}
 
 // Add LoadingAnimation component
 const LoadingAnimation = () => {
@@ -94,30 +110,34 @@ function YourReportPage() {
         tokenPreview: token ? `${token.slice(0, 10)}...` : 'no token'
       });
 
-      const response = await axios.get(`${API_BASE_URL}/reports`, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        },
-        withCredentials: true,
-      });
+      const response = await api.get("/api/documents/");
 
       console.log("Debug - API Response:", {
         status: response.status,
         hasData: !!response.data,
-        reportsCount: response.data?.reports?.length,
-        rawData: response.data
+        documentsCount: response.data?.documents?.length,
+        rawData: response.data,
       });
 
-      if (response.data && Array.isArray(response.data.reports)) {
-        setReports(response.data.reports);
+      if (response.data && response.data.documents) {
+        setReports(
+          response.data.documents.map((doc) => ({
+            id: doc.id,
+            filename: doc.filename,
+            uploaded_at: doc.uploaded_at,
+            summary: doc.summary || "",
+            gcs_uri: doc.gcs_uri,
+            size_bytes: doc.size_bytes,
+          }))
+        );
       } else {
-        throw new Error('Invalid response format from server');
+        setReports([]);
       }
       setIsLoading(false);
 
       console.log("Debug - Reports State:", {
-        reportsCount: reports.length,
-        firstReport: response.data.reports[0]
+        reportsCount: response.data?.documents?.length,
+        firstReport: response.data?.documents?.[0],
       });
 
     } catch (error) {
@@ -155,22 +175,60 @@ function YourReportPage() {
     });
   };
 
-  const handleViewReport = (fileUrl) => {
-    window.open(fileUrl, '_blank');
+  const handleViewReport = async (report) => {
+    const fileUrl = report?.gcs_uri || report?.fileUrl;
+    if (fileUrl && String(fileUrl).startsWith("http")) {
+      window.open(fileUrl, "_blank");
+      return;
+    }
+    const id = report?.id;
+    if (!id) return;
+    try {
+      const blob = await fetchDocumentBlob(id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      console.error(e);
+      setError(e?.message || "Could not open report file.");
+    }
   };
 
-  const handleDownloadReport = (fileUrl, fileName) => {
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadReport = async (report) => {
+    const fileUrl = report?.gcs_uri || report?.fileUrl;
+    const fileName =
+      report?.filename || report?.fileName || "report";
+    if (fileUrl && String(fileUrl).startsWith("http")) {
+      const link = document.createElement("a");
+      link.href = fileUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+    const id = report?.id;
+    if (!id) return;
+    try {
+      const blob = await fetchDocumentBlob(id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName.replace(/^\d+_/, "");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      setError(e?.message || "Could not download report.");
+    }
   };
 
   const handleViewSummary = (report) => {
     console.log("Opening summary for:", report);
-    if (!report || !report.summary) return; // optional: skip if no summary
+    // Note: Summary may not be available yet - could be generated via /api/summaries/generate/
+    if (!report) return;
     setSelectedReport(report);
     setShowSummaryModal(true);
   };
@@ -197,10 +255,10 @@ function YourReportPage() {
           <div className="p-6 overflow-y-auto max-h-[calc(90vh-8rem)] bg-[#000]">
             <div className="mb-4">
               <h3 className="font-medium text-gray-700">File Name:</h3>
-              <p className="text-gray-600">{report.fileName.replace(/^\d+_/, '')}</p>
+              <p className="text-gray-600">{(report.filename || report.fileName || 'Unknown').replace(/^\d+_/, '')}</p>
             </div>
             <div className="prose max-w-none">
-            <ReactMarkdown>{report.summary || 'No summary available.'}</ReactMarkdown>
+            <ReactMarkdown>{report.summary || report.text_content || 'No summary available. You can generate a summary using the summary generation API.'}</ReactMarkdown>
             </div>
           </div>
      
@@ -286,18 +344,10 @@ function YourReportPage() {
         return;
       }
 
-      await axios.delete(
-        `${API_BASE_URL}/deleteUserPdf/${reportId}`,
-        {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          },
-          withCredentials: true,
-        }
-      );
+      await api.delete(`/api/documents/${reportId}/`);
 
       // Remove the deleted report from the state
-      setReports(prev => prev.filter(report => report._id !== reportId));
+      setReports(prev => prev.filter(report => report.id !== reportId));
       
       // Show success alert
       setShowSuccessAlert(true);
@@ -325,7 +375,7 @@ function YourReportPage() {
         <FiFilePlus className='w-5 h-5' />  
       </button>
       <button 
-        onClick={() => handleViewReport(report.fileUrl)}
+        onClick={() => handleViewReport(report)}
         className="text-blue-600 hover:text-blue-900"
         data-tooltip-id="action-tooltip"
         data-tooltip-content="View Report"
@@ -333,7 +383,7 @@ function YourReportPage() {
         <FiEye className="w-5 h-5" />
       </button>
       <button 
-        onClick={() => handleDownloadReport(report.fileUrl, report.fileName)}
+        onClick={() => handleDownloadReport(report)}
         className="text-green-600 hover:text-green-900"
         data-tooltip-id="action-tooltip"
         data-tooltip-content="Download Report"
@@ -341,7 +391,7 @@ function YourReportPage() {
         <FiDownload className="w-5 h-5" />
       </button>
       <button 
-        onClick={() => handleDeleteReport(report._id)}
+        onClick={() => handleDeleteReport(report.id || report._id)}
         className="text-red-600 hover:text-red-900"
         data-tooltip-id="action-tooltip"
         data-tooltip-content="Delete Report"
@@ -363,7 +413,7 @@ function YourReportPage() {
         <FiFilePlus className="w-5 h-5" />
       </button>
       <button 
-        onClick={() => handleViewReport(report.fileUrl)}
+        onClick={() => handleViewReport(report)}
         className="p-2 text-blue-600 hover:bg-blue-50 rounded"
         data-tooltip-id="mobile-action-tooltip"
         data-tooltip-content="View Report"
@@ -371,7 +421,7 @@ function YourReportPage() {
         <FiEye className="w-5 h-5" />
       </button>
       <button 
-        onClick={() => handleDownloadReport(report.fileUrl, report.fileName)}
+        onClick={() => handleDownloadReport(report)}
         className="p-2 text-green-600 hover:bg-green-50 rounded"
         data-tooltip-id="mobile-action-tooltip"
         data-tooltip-content="Download Report"
@@ -379,7 +429,7 @@ function YourReportPage() {
         <FiDownload className="w-5 h-5" />
       </button>
       <button 
-        onClick={() => handleDeleteReport(report._id)}
+        onClick={() => handleDeleteReport(report.id || report._id)}
         className="p-2 text-red-600 hover:bg-red-50 rounded"
         data-tooltip-id="mobile-action-tooltip"
         data-tooltip-content="Delete Report"
@@ -465,20 +515,20 @@ function YourReportPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {reports.map((report, index) => (
                     <tr 
-                      key={report._id} 
+                      key={report.id || index} 
                       className="hover:bg-[#f8fafc]"
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <FiFileText className="w-5 h-5 text-blue-500 mr-2" />
                           <span className="text-sm font-medium text-gray-900">
-                          <p>{report?.fileName?.replace(/^\d+_/, '') || 'No filename'}</p>
+                          <p>{report?.filename?.replace(/^\d+_/, '') || report?.fileName?.replace(/^\d+_/, '') || 'No filename'}</p>
 
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(report.createdAt || report.uploadDate)}
+                        {formatDate(report.uploaded_at || report.createdAt || report.uploadDate)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
@@ -496,14 +546,14 @@ function YourReportPage() {
             <div className="md:hidden space-y-4">
               {reports.map((report, index) => (
                 <div
-                  key={report._id}
+                  key={report.id || index}
                   className="bg-white rounded-lg shadow-sm p-4 border border-gray-200"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       <FiFileText className="w-5 h-5 text-blue-500 mr-2" />
                       <span className="font-medium text-gray-900">
-                      <p>{report?.fileName?.replace(/^\d+_/, '') || 'No filename'}</p>
+                      <p>{report?.filename?.replace(/^\d+_/, '') || report?.fileName?.replace(/^\d+_/, '') || 'No filename'}</p>
                       </span>
                     </div>
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
@@ -511,7 +561,7 @@ function YourReportPage() {
                     </span>
                   </div>
                   <div className="text-sm text-gray-500 mb-3">
-                    {formatDate(report.createdAt || report.uploadDate)}
+                    {formatDate(report.uploaded_at || report.createdAt || report.uploadDate)}
                   </div>
                   {mobileActions(report)}
                 </div>

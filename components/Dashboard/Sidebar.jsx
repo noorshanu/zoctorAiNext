@@ -1,106 +1,167 @@
 "use client";
-import { useState, useEffect } from 'react';
-import { FaHome, FaUser, FaBars, FaTimes } from 'react-icons/fa';
+import { useState, useEffect } from "react";
+import { FaHome, FaUser, FaBars, FaTimes } from "react-icons/fa";
 import { IoAnalyticsOutline } from "react-icons/io5";
 import { FiFileText } from "react-icons/fi";
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+function normalizePath(p) {
+  if (!p) return "/";
+  const t = p.replace(/\/$/, "") || "/";
+  return t;
+}
+
+const navItems = [
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: FaHome,
+    match: "/dashboard",
+  },
+  {
+    href: "/profile/",
+    label: "Profile",
+    icon: FaUser,
+    match: "/profile",
+  },
+  {
+    href: "/your-report/",
+    label: "Your reports",
+    icon: FiFileText,
+    match: "/your-report",
+  },
+  {
+    href: "/reports/",
+    label: "Get analysis",
+    icon: IoAnalyticsOutline,
+    match: "/reports",
+  },
+];
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [userId, setUserId] = useState(null);
   const pathname = usePathname();
 
   useEffect(() => {
-    // Get userId from localStorage when component mounts
-    const storedUserId = localStorage.getItem('userId');
-    if (storedUserId) {
-      setUserId(storedUserId);
-    }
-  }, []);
+    setIsOpen(false);
+  }, [pathname]);
 
-  const isActive = (href) => {
-    if (!href) return false;
-    // Exact match or starts with for nested routes
-    return pathname === href || pathname.startsWith(href + '/');
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isOpen]);
+
+  const isActive = (matchBase) => {
+    const path = normalizePath(pathname);
+    const base = normalizePath(matchBase);
+    if (path === base) return true;
+    return path.startsWith(base + "/");
   };
+
+  const linkClasses = (active) =>
+    [
+      "group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200",
+      active
+        ? "border-l-[3px] border-prime bg-prime/15 text-white shadow-sm"
+        : "border-l-[3px] border-transparent text-white/65 hover:border-white/10 hover:bg-white/5 hover:text-white",
+    ].join(" ");
+
+  const iconWrap = (active) =>
+    `flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg transition-colors ${
+      active
+        ? "bg-prime/25 text-prime"
+        : "bg-white/5 text-white/70 group-hover:bg-white/10 group-hover:text-prime"
+    }`;
 
   return (
     <>
-      {/* Mobile Toggle Button */}
       <button
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-[#1a1a1a] text-white shadow-lg hover:bg-[#2a2a2a] transition-colors"
-        onClick={() => setIsOpen(!isOpen)}
+        type="button"
+        className="fixed left-3 top-[4.25rem] z-[60] flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-[#0e0e0e]/95 text-white shadow-lg backdrop-blur-sm transition hover:border-prime/40 hover:bg-[#1a1a1a] lg:hidden"
+        onClick={() => setIsOpen((o) => !o)}
+        aria-expanded={isOpen}
+        aria-controls="dashboard-sidebar"
+        aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
       >
-        {isOpen ? <FaTimes /> : <FaBars />}
+        {isOpen ? <FaTimes className="text-lg" /> : <FaBars className="text-lg" />}
       </button>
 
-      {/* Overlay for mobile */}
       {isOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+        <button
+          type="button"
+          className="fixed inset-0 z-[35] bg-black/60 backdrop-blur-[2px] lg:hidden"
+          aria-label="Close menu"
           onClick={() => setIsOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
-      <div
-        className={`fixed top-0 left-0 h-full bg-[#0e0e0e] text-white w-64 shadow-xl z-40
-          transform transition-transform duration-300 ease-in-out
-          lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      <aside
+        id="dashboard-sidebar"
+        className={`fixed left-0 top-0 z-40 flex h-full w-[17rem] flex-col border-r border-white/10 bg-[#0e0e0e] text-white shadow-2xl transition-transform duration-300 ease-out lg:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
-        <div className="border-b border-[#565656] pb-4 p-4">
-          <img src="/images/logo.png" alt="Logo" className="h-[100px] mx-auto" />
-        </div>
-
-        <nav className="flex flex-col gap-2 p-4">
+        <div className="border-b border-white/10 px-4 py-6">
           <Link
             href="/dashboard"
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
-              ${isActive('/dashboard') 
-                ? 'bg-[#1a1a1a] text-white shadow-md' 
-                : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`}
+            className="block outline-none focus-visible:ring-2 focus-visible:ring-prime/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0e0e0e] rounded-lg"
+            onClick={() => setIsOpen(false)}
           >
-            <FaHome className="text-xl" /> 
-            <span className="font-medium">Dashboard</span>
+            <img
+              src="/images/logo.png"
+              alt="ZoctorAI"
+              className="mx-auto h-14 w-auto max-w-[140px] object-contain"
+            />
           </Link>
+          <p className="mt-3 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
+            Medical intelligence
+          </p>
+        </div>
 
-          {userId && (
-            <Link
-              href={`/profile/${userId}`}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
-                ${isActive(`/profile/${userId}`) 
-                  ? 'bg-[#1a1a1a] text-white shadow-md' 
-                  : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`}
-            >
-              <FaUser className="text-xl" />
-              <span className="font-medium">Profile</span>
-            </Link>
-          )}
-
-          <Link
-            href={userId ? `/your-report/${userId}` : '#'}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
-              ${isActive(`/your-report/${userId}`) 
-                ? 'bg-[#1a1a1a] text-white shadow-md' 
-                : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`}
-          >
-            <FiFileText className="text-xl" />
-            <span className="font-medium">Your reports</span>
-          </Link>
-
-          <Link
-            href={userId ? `/reports/${userId}` : '#'}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
-              ${isActive(`/reports/${userId}`) 
-                ? 'bg-[#1a1a1a] text-white shadow-md' 
-                : 'text-gray-300 hover:bg-[#1a1a1a] hover:text-white'}`}
-          >
-            <IoAnalyticsOutline className="text-xl" />
-            <span className="font-medium">Get analysis</span>
-          </Link>
+        <nav
+          className="flex flex-1 flex-col gap-1 overflow-y-auto p-3"
+          aria-label="Main navigation"
+        >
+          <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/35">
+            Menu
+          </p>
+          {navItems.map(({ href, label, icon: Icon, match }) => {
+            const active = isActive(match);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={linkClasses(active)}
+                aria-current={active ? "page" : undefined}
+                onClick={() => setIsOpen(false)}
+              >
+                <span className={iconWrap(active)} aria-hidden>
+                  <Icon className="text-xl" />
+                </span>
+                <span>{label}</span>
+              </Link>
+            );
+          })}
         </nav>
-      </div>
+
+        <div className="border-t border-white/10 p-4">
+          <p className="text-center text-[11px] text-white/35">
+            Need help?{" "}
+            <Link
+              href="/contactus"
+              className="font-medium text-prime hover:underline"
+              onClick={() => setIsOpen(false)}
+            >
+              Contact us
+            </Link>
+          </p>
+        </div>
+      </aside>
     </>
   );
 };
