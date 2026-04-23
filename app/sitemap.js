@@ -12,6 +12,7 @@ export default function sitemap() {
     '/privacy-policy',
     '/terms-condition',
     '/how-it-works',
+    '/Medical-Tourism-Concierge',
   ];
 
   return routes.map((path) => ({

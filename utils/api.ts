@@ -6,10 +6,10 @@ function isBrowserLocalDev(): boolean {
   return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
 }
 
-// Support both local and production environments (127.0.0.1 must match localhost or API calls wrongly hit production)
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (isBrowserLocalDev() ? 'http://127.0.0.1:8000' : 'https://zaidi123.pythonanywhere.com');
+// Support both local and production environments (127.0.0.1 must match localhost).
+// Keep this as API origin only (no /api/v1 suffix), because routes in this file already add /api/... paths.
+export const API_BASE_URL ='https://api.zoctorai.com'
+  
 
 /**
  * When true, use Zoctor FastAPI routes: `/api/users/auth/*`, `/api/v1/*` (chat, PDF, summaries).
@@ -92,7 +92,8 @@ api.interceptors.response.use(
       const reqUrl = String(error.config?.url ?? '');
       const isPublicAuth =
         reqUrl.includes('/api/users/auth/login') ||
-        reqUrl.includes('/api/users/auth/signup');
+        reqUrl.includes('/api/users/auth/signup') ||
+        reqUrl.includes('/api/users/auth/google');
       if (!isPublicAuth) {
         localStorage.removeItem('accessToken');
         window.location.href = '/login';
@@ -247,6 +248,25 @@ export const registerUser = async (userData: {
 // };
 
 // User Login
+/** Sign in with Google (credential JWT from Google Identity Services). */
+export const loginWithGoogle = async (credential: string) => {
+  try {
+    const response = await api.post('/api/users/auth/google', { credential });
+    return {
+      status: Boolean(response.data?.access),
+      message: response.data?.message ?? (response.data?.access ? 'Signed in' : 'Sign-in failed'),
+      accessToken: response.data.access,
+      refreshToken: response.data.refresh,
+      userId: response.data.user.id,
+      firstName: response.data.user.first_name,
+      user: response.data.user,
+    };
+  } catch (error: any) {
+    console.error('Google sign-in error:', error.response?.data || error.message);
+    throw error.response?.data || error.message;
+  }
+};
+
 export const loginUser = async (credentials: { identifier: string; password: string }) => {
   try {
     const response = await api.post('/api/users/auth/login', credentials);
@@ -439,6 +459,31 @@ export const getDocuments = async () => {
 /** Attach AI summary to an uploaded document (Your Reports). */
 export const updateDocumentSummary = async (documentId: string, summary: string) => {
   const response = await api.patch(`/api/documents/${documentId}/`, { summary });
+  return response.data;
+};
+
+/** Public KB: pricing tiers + FAQ (from FastAPI `local_info_patch.json`). */
+export type LocalInfoPricingTier = {
+  name?: string;
+  price?: string;
+  description?: string;
+  link?: string;
+};
+
+export type LocalInfoFaqItem = { question: string; answer: string };
+
+export type LocalInfoResponse = {
+  pricing: Record<string, LocalInfoPricingTier>;
+  faq: {
+    security?: string;
+    privacy?: string;
+    refund?: string;
+    items: LocalInfoFaqItem[];
+  };
+};
+
+export const fetchLocalInfo = async (): Promise<LocalInfoResponse> => {
+  const response = await api.get('/api/local-info');
   return response.data;
 };
 
@@ -666,6 +711,123 @@ export const deleteFamilyProfile = async (userId: string, profileId: string) => 
     throw new Error(data?.message || data?.detail || `Delete profile failed (${res.status})`);
   }
   return data;
+};
+
+const paidReportsBase = () => `${String(API_BASE_URL).replace(/\/$/, '')}/api/paid-reports`;
+
+/** Tier-1 Health Reveal: start simulated payment (use skip_report_check in dev without Firestore uploads). */
+export const initiatePaidReport = async (
+  userId: string,
+  payload: { profile_id?: string | null; tier?: string; skip_report_check?: boolean } = {}
+) => {
+  const res = await fetch(`${paidReportsBase()}/initiate/${encodeURIComponent(userId)}`, {
+    method: 'POST',
+    headers: await authHeadersJson(),
+    body: JSON.stringify({
+      tier: payload.tier ?? 'tier_1',
+      profile_id: payload.profile_id ?? null,
+      skip_report_check: payload.skip_report_check ?? false,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      (data as { message?: string })?.message ||
+        (data as { detail?: string })?.detail ||
+        `Initiate paid report failed (${res.status})`
+    );
+  }
+  return data as Record<string, unknown>;
+};
+
+/** Confirm simulated payment (dev: use confirmation "confirm payment") and generate Tier-1 PDF on server. */
+export const confirmPaidReport = async (
+  userId: string,
+  body: {
+    payment_id: string;
+    confirmation: string;
+    patient_name?: string;
+    language?: string;
+    profile_id?: string | null;
+    report_text?: string | null;
+  }
+) => {
+  const res = await fetch(`${paidReportsBase()}/confirm/${encodeURIComponent(userId)}`, {
+    method: 'POST',
+    headers: await authHeadersJson(),
+    body: JSON.stringify({
+      payment_id: body.payment_id,
+      confirmation: body.confirmation,
+      patient_name: body.patient_name,
+      language: body.language ?? 'en',
+      profile_id: body.profile_id ?? null,
+      report_text: body.report_text ?? null,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      (data as { message?: string })?.message ||
+        (data as { detail?: string })?.detail ||
+        `Confirm paid report failed (${res.status})`
+    );
+  }
+  return data as Record<string, unknown>;
+};
+
+/** Authenticated order status (safe: only returns data if order belongs to current user). */
+export const getMyPaidOrderStatus = async (paymentId: string) => {
+  const res = await fetch(`${paidReportsBase()}/me/order/${encodeURIComponent(paymentId)}`, {
+    method: 'GET',
+    headers: await authHeadersJson(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      (data as { message?: string })?.message ||
+        (data as { detail?: string })?.detail ||
+        `Order status failed (${res.status})`
+    );
+  }
+  return data as {
+    found: boolean;
+    status?: string;
+    payment_id?: string;
+    tier?: string;
+    download_ready?: boolean;
+    message?: string;
+    created_at?: string;
+    completed_at?: string;
+  };
+};
+
+/** Download server-generated Tier-1 PDF (requires completed order). */
+export const downloadPaidReportPdf = async (paymentId: string, filename?: string) => {
+  if (typeof window === 'undefined') return;
+  const res = await fetch(`${paidReportsBase()}/download/${encodeURIComponent(paymentId)}`, {
+    method: 'GET',
+    headers: await authHeadersJson(),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    let msg = errText;
+    try {
+      const j = JSON.parse(errText) as { message?: string; detail?: string };
+      msg = j?.message || j?.detail || errText;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg || `Download failed (${res.status})`);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename || `Zoctor_Health_Reveal_${paymentId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(-24)}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 export { normalizeApiError } from './apiErrors';

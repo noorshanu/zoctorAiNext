@@ -16,6 +16,8 @@ function Navbar() {
   const { t } = useTranslation();
   const pathname = usePathname();
   const isActive = (path) => pathname === path;
+  const isDashboardActive =
+    pathname === '/dashboard' || (pathname && pathname.startsWith('/dashboard'));
   // We'll store the user's first name in local state
   const [firstName, setFirstName] = useState("");
 
@@ -80,11 +82,19 @@ function Navbar() {
             <LanguageSwitcher />
           </div>
         {isAuthenticated ? (
-            /* If user is logged in, show user's first name (or "Welcome, name") */
-            <div className="flex items-center gap-4 text-white ml-5">
-              <p className="font-bold text-white">
+            /* Logged in: welcome + Dashboard */
+            <div className="flex items-center gap-3 text-white ml-5 flex-wrap justify-end">
+              <p className="font-bold text-white hidden sm:block">
                 {t('nav.welcome', { name: firstName })}
               </p>
+              <Link
+                href="/dashboard"
+                className={`shadow-xl py-2 px-4 font-archo text-center text-base rounded-3xl font-manbold font-bold flex items-center gap-2 border border-white/30 bg-white/10 hover:bg-[#005dff] hover:border-transparent transition-colors ${
+                  isDashboardActive ? 'ring-2 ring-prime' : ''
+                }`}
+              >
+                {t('nav.dashboard', { defaultValue: 'Dashboard' })}
+              </Link>
             </div>
           ) : (
             /* If user is NOT logged in, show the Login button */
@@ -179,6 +189,15 @@ function Navbar() {
               >
                 {t('nav.contactUs')}
               </Link>
+              {isAuthenticated && (
+                <Link
+                  href="/dashboard"
+                  className={`block px-3 py-2 text-white font-bold text-lg border-b-2 ${isDashboardActive ? 'border-prime' : 'border-transparent'}`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  {t('nav.dashboard', { defaultValue: 'Dashboard' })}
+                </Link>
+              )}
               <div className="px-3 pt-4 flex items-center gap-4 text-white">
                 <a
                   href="https://twitter.com/"

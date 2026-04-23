@@ -12,33 +12,37 @@ const Hero2 = () => {
   const span2 = useRef();
 
   useEffect(() => {
+    const w = wrapper.current;
+    const m = mobile.current;
+    const s1 = span1.current;
+    const s2 = span2.current;
+    if (!w || !m || !s1 || !s2) return;
+
     const tl = gsap.timeline();
 
-    gsap.set([mobile.current], {
-      top:
-        wrapper.current.getBoundingClientRect().height -
-        mobile.current.getBoundingClientRect().height,
+    gsap.set(m, {
+      top: w.getBoundingClientRect().height - m.getBoundingClientRect().height,
       opacity: 0,
     });
 
-    gsap.set([span1.current], {
+    gsap.set(s1, {
       marginRight: "0.29em",
     });
 
-    gsap.set([span1.current, span2.current], {
+    gsap.set([s1, s2], {
       translateZ: 140,
       rotateX: "70deg",
       opacity: 0,
     });
 
-    tl.to([span1.current, span2.current], {
+    tl.to([s1, s2], {
       rotateX: "0deg",
       opacity: 1,
       duration: 0.9,
       stagger: 0.35,
     });
 
-    tl.to([span1.current, span2.current], {
+    tl.to([s1, s2], {
       marginRight: 0,
       translateZ: 0,
       ease: "power3.out",
@@ -46,7 +50,7 @@ const Hero2 = () => {
     });
 
     tl.to(
-      mobile.current,
+      m,
       {
         ease: "power3.out",
         duration: 1.25,
@@ -54,20 +58,20 @@ const Hero2 = () => {
       },
       "<"
     );
-    tl.to(
-      mobile.current,
-      { ease: "power3.out", duration: 0.4, opacity: 1 },
-      "<"
-    );
+    tl.to(m, { ease: "power3.out", duration: 0.4, opacity: 1 }, "<");
   }, []);
 
   const handleMouseMove = (e) => {
-    gsap.to(heading.current, {
+    const h = heading.current;
+    const m = mobile.current;
+    if (!h || !m) return;
+
+    gsap.to(h, {
       x: -((e.clientX / window.innerWidth - 0.5) * 15),
       y: -((e.clientY / window.innerHeight - 0.5) * 15),
     });
 
-    gsap.to([mobile.current], {
+    gsap.to(m, {
       x: (e.clientX / window.innerWidth - 0.5) * 20,
       y: (e.clientY / window.innerHeight - 0.5) * 20,
     });

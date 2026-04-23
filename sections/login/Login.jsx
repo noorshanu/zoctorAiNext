@@ -5,10 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { IoEye } from "react-icons/io5";
 import { IoIosEyeOff } from "react-icons/io";
-import { loginUser, sendOtp, verifyOtp, isZoctorFastApiBackend } from "../../utils/api";
+import {
+  loginUser,
+  loginWithGoogle,
+  sendOtp,
+  verifyOtp,
+  isZoctorFastApiBackend,
+} from "../../utils/api";
 import { normalizeApiError } from "../../utils/apiErrors";
 import { useAuth } from "../../AuthProvider";
 import { AuthError, AuthInfo } from "../../components/auth/AuthFeedback";
+import GoogleAuthButton from "../../components/auth/GoogleAuthButton";
 
 function Login() {
   const { login } = useAuth();
@@ -23,6 +30,35 @@ function Login() {
   const [sessionId, setSessionId] = useState("");
   const router = useRouter();
   const fastApi = isZoctorFastApiBackend();
+
+  const handleGoogleCredential = async (credential) => {
+    setError("");
+    setInfo("");
+    setIsSubmitting(true);
+    try {
+      const response = await loginWithGoogle(credential);
+      if (!response.status) {
+        setError(response.message || "Google sign-in failed");
+        return;
+      }
+      localStorage.setItem("accessToken", response.accessToken);
+      if (response.refreshToken) {
+        localStorage.setItem("refreshToken", response.refreshToken);
+      }
+      localStorage.setItem("userId", response.userId);
+      localStorage.setItem("user", JSON.stringify(response.user));
+      login(response.accessToken, {
+        userId: response.userId,
+        firstName: response.firstName,
+      });
+      router.push(`/dashboard`);
+    } catch (err) {
+      const { message } = normalizeApiError(err, "Google sign-in failed");
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -129,6 +165,32 @@ function Login() {
             <h2 className="text-2xl font-bold text-center text-white">
               Welcome Back
             </h2>
+            <div
+              className="flex flex-col items-stretch gap-2 pt-1"
+              role="group"
+              aria-labelledby="login-google-heading"
+            >
+              <p
+                id="login-google-heading"
+                className="text-center text-sm font-medium text-white/90"
+              >
+                Sign in with Google
+              </p>
+              <GoogleAuthButton
+                disabled={isSubmitting}
+                onCredential={handleGoogleCredential}
+              />
+            </div>
+            <div className="relative py-3">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/15" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-[#000000cc] px-2 text-white/70">
+                  or continue with email
+                </span>
+              </div>
+            </div>
             <form className="space-y-4" onSubmit={handleLogin}>
               <div>
                 <label

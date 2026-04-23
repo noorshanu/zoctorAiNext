@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Dashboard/Layout';
 import api, { API_BASE_URL } from '../utils/api';
+import { downloadSummaryPdf } from '../utils/summaryPdfExport';
 import { FiFileText, FiDownload, FiEye, FiAlertCircle, FiX, FiTrash2 } from 'react-icons/fi';
 import { FiFilePlus } from "react-icons/fi";
 import ReactMarkdown from 'react-markdown';
@@ -232,7 +233,25 @@ function YourReportPage() {
     setSelectedReport(report);
     setShowSummaryModal(true);
   };
-  
+
+  const handleDownloadSummaryPdf = async (report) => {
+    const text = report?.summary || report?.text_content;
+    if (!text || String(text).trim().length < 2) {
+      setError("No summary text to export. Open the summary after analysis completes.");
+      return;
+    }
+    try {
+      setError(null);
+      const base = (report?.filename || "report").replace(/^\d+_/, "").replace(/\.[^.]+$/i, "") || "report";
+      await downloadSummaryPdf({
+        summary: text,
+        filename: `ZoctorAI_free_summary_${base}.pdf`,
+      });
+    } catch (e) {
+      console.error(e);
+      setError(e?.message || "Could not create summary PDF.");
+    }
+  };
 
   const SummaryModal = ({ report, onClose }) => {
     if (!report) return null;
@@ -259,6 +278,23 @@ function YourReportPage() {
             </div>
             <div className="prose max-w-none">
             <ReactMarkdown>{report.summary || report.text_content || 'No summary available. You can generate a summary using the summary generation API.'}</ReactMarkdown>
+            </div>
+            <div className="mt-6 pt-4 border-t border-gray-700 flex flex-wrap gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => handleDownloadSummaryPdf(report)}
+                disabled={!(report.summary || report.text_content)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <FiDownload className="w-4 h-4" />
+                Free summary PDF
+              </button>
+              <a
+                href="/reports"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-500/80 text-amber-200 text-sm font-medium hover:bg-white/10"
+              >
+                Health Reveal (full PDF)
+              </a>
             </div>
           </div>
      
@@ -374,11 +410,21 @@ function YourReportPage() {
       >
         <FiFilePlus className='w-5 h-5' />  
       </button>
+      {!!(report.summary || report.text_content) && (
+        <button 
+          onClick={() => handleDownloadSummaryPdf(report)}
+          className="text-emerald-600 hover:text-emerald-900"
+          data-tooltip-id="action-tooltip"
+          data-tooltip-content="Free summary PDF"
+        >
+          <FiDownload className="w-5 h-5" />
+        </button>
+      )}
       <button 
         onClick={() => handleViewReport(report)}
         className="text-blue-600 hover:text-blue-900"
         data-tooltip-id="action-tooltip"
-        data-tooltip-content="View Report"
+        data-tooltip-content="View original file"
       >
         <FiEye className="w-5 h-5" />
       </button>
@@ -386,7 +432,7 @@ function YourReportPage() {
         onClick={() => handleDownloadReport(report)}
         className="text-green-600 hover:text-green-900"
         data-tooltip-id="action-tooltip"
-        data-tooltip-content="Download Report"
+        data-tooltip-content="Download original upload"
       >
         <FiDownload className="w-5 h-5" />
       </button>
@@ -412,11 +458,21 @@ function YourReportPage() {
       >
         <FiFilePlus className="w-5 h-5" />
       </button>
+      {!!(report.summary || report.text_content) && (
+        <button 
+          onClick={() => handleDownloadSummaryPdf(report)}
+          className="p-2 text-emerald-600 hover:bg-emerald-50 rounded"
+          data-tooltip-id="mobile-action-tooltip"
+          data-tooltip-content="Free summary PDF"
+        >
+          <FiDownload className="w-5 h-5" />
+        </button>
+      )}
       <button 
         onClick={() => handleViewReport(report)}
         className="p-2 text-blue-600 hover:bg-blue-50 rounded"
         data-tooltip-id="mobile-action-tooltip"
-        data-tooltip-content="View Report"
+        data-tooltip-content="View original file"
       >
         <FiEye className="w-5 h-5" />
       </button>
@@ -424,7 +480,7 @@ function YourReportPage() {
         onClick={() => handleDownloadReport(report)}
         className="p-2 text-green-600 hover:bg-green-50 rounded"
         data-tooltip-id="mobile-action-tooltip"
-        data-tooltip-content="Download Report"
+        data-tooltip-content="Download original upload"
       >
         <FiDownload className="w-5 h-5" />
       </button>
@@ -457,6 +513,13 @@ function YourReportPage() {
           </h1>
           <p className="mt-2 text-sm text-gray-600">
             View and manage all your medical reports
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            For the full server-generated Health Reveal PDF (Tier-1), go to{' '}
+            <a href="/reports" className="text-prime underline font-medium">
+              Reports
+            </a>{' '}
+            after you run an analysis there — downloads use your account session.
           </p>
         </div>
 

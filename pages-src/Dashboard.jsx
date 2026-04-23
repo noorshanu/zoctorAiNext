@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import {
   FiFileText,
   FiAward,
@@ -9,8 +10,14 @@ import {
   FiTrendingUp,
   FiUsers,
   FiArrowRight,
+  FiHelpCircle,
+  FiExternalLink,
 } from "react-icons/fi";
 import Layout from "../components/Dashboard/Layout";
+import { fetchLocalInfo } from "../utils/api";
+import { normalizeApiError } from "../utils/apiErrors";
+
+const FAQ_PREVIEW = 6;
 
 const features = [
   {
@@ -63,9 +70,17 @@ const features = [
   },
 ];
 
+function sortTierEntries(pricing) {
+  if (!pricing || typeof pricing !== "object") return [];
+  return Object.entries(pricing).sort(([a], [b]) => a.localeCompare(b));
+}
+
 function Dashboard() {
   const [userId, setUserId] = useState(null);
   const [firstName, setFirstName] = useState("");
+  const [localInfo, setLocalInfo] = useState(null);
+  const [infoLoading, setInfoLoading] = useState(true);
+  const [infoError, setInfoError] = useState(null);
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
@@ -73,23 +88,56 @@ function Dashboard() {
     const fn = localStorage.getItem("firstName");
     if (fn) {
       setFirstName(fn);
-      return;
-    }
-    try {
-      const raw = localStorage.getItem("user");
-      if (raw) {
-        const u = JSON.parse(raw);
-        if (u?.first_name) setFirstName(u.first_name);
+    } else {
+      try {
+        const raw = localStorage.getItem("user");
+        if (raw) {
+          const u = JSON.parse(raw);
+          if (u?.first_name) setFirstName(u.first_name);
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setInfoLoading(true);
+      setInfoError(null);
+      try {
+        const data = await fetchLocalInfo();
+        if (!cancelled) setLocalInfo(data);
+      } catch (e) {
+        if (!cancelled) {
+          setInfoError(
+            normalizeApiError(e, "Could not load plans and FAQ.").message
+          );
+        }
+      } finally {
+        if (!cancelled) setInfoLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const reportsHref = userId ? "/reports/" : "/login";
   const greeting = firstName
     ? `Welcome back, ${firstName}`
     : "Welcome to ZoctorAI";
+
+  const pricing = localInfo?.pricing;
+  const faq = localInfo?.faq;
+  const tierRows = sortTierEntries(pricing);
+  const faqPreview = (faq?.items || []).slice(0, FAQ_PREVIEW);
+  const trustItems = [
+    { title: "Security", text: faq?.security },
+    { title: "Privacy", text: faq?.privacy },
+    { title: "Refunds", text: faq?.refund },
+  ].filter((x) => x.text && String(x.text).trim());
 
   return (
     <Layout>
@@ -169,17 +217,174 @@ function Dashboard() {
               )
             )}
           </div>
+        </section>
 
-          <div className="mt-12 flex justify-center">
+        {/* Pricing (API) */}
+        <section className="rounded-2xl border border-gray-200/90 bg-gradient-to-b from-white to-gray-50/80 p-6 sm:p-8">
+          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+                Plans & pricing
+              </h2>
+              <p className="mt-1 text-gray-600">
+                Current tiers from ZoctorAI — upgrade when you need more depth.
+              </p>
+            </div>
+          </div>
+
+          {infoLoading && (
+            <p className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-gray-500">
+              Loading plans…
+            </p>
+          )}
+          {infoError && !infoLoading && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {infoError}{" "}
+              <span className="text-gray-600">
+                (Is the API running at your{" "}
+                <code className="rounded bg-white px-1">NEXT_PUBLIC_API_URL</code>?)
+              </span>
+            </div>
+          )}
+          {!infoLoading && !infoError && tierRows.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {tierRows.map(([key, tier]) => (
+                <article
+                  key={key}
+                  className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-prime/40 hover:shadow-md"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-prime">
+                    {key.replace("tier_", "Tier ")}
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                    {tier.name || "Plan"}
+                  </h3>
+                  <p className="mt-2 text-2xl font-bold text-gray-900">
+                    {tier.price || "—"}
+                  </p>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-gray-600">
+                    {tier.description}
+                  </p>
+                  {tier.link ? (
+                    <a
+                      href={tier.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-prime px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-600"
+                    >
+                      Learn more
+                      <FiExternalLink className="h-4 w-4" aria-hidden />
+                    </a>
+                  ) : (
+                    <Link
+                      href={reportsHref}
+                      className="mt-4 inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-800 transition hover:border-prime/50 hover:bg-gray-50"
+                    >
+                      Get started
+                    </Link>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Trust line from KB */}
+        {trustItems.length > 0 && (
+          <section>
+            <h2 className="mb-4 text-xl font-bold text-gray-900">Trust & policies</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {trustItems.map(({ title, text }) => (
+                <div
+                  key={title}
+                  className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+                >
+                  <h3 className="font-semibold text-gray-900">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-600">{text}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* FAQ preview (API) */}
+        <section className="rounded-2xl border border-gray-200/90 bg-white p-6 sm:p-8 shadow-sm">
+          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-prime/10 text-prime">
+                <FiHelpCircle className="h-5 w-5" aria-hidden />
+              </span>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">FAQ</h2>
+                <p className="text-sm text-gray-600">
+                  Common questions from our knowledge base
+                </p>
+              </div>
+            </div>
             <Link
-              href={reportsHref}
-              className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-8 py-4 text-base font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
+              href="/faq/"
+              className="text-sm font-semibold text-prime hover:underline"
             >
-              Start your analysis
-              <FiFileText className="h-5 w-5" aria-hidden />
+              View all FAQs
             </Link>
           </div>
+
+          {infoLoading && (
+            <p className="text-center text-gray-500 py-6">Loading questions…</p>
+          )}
+          {!infoLoading && faqPreview.length === 0 && !infoError && (
+            <p className="text-center text-gray-500 py-6">No FAQ items available.</p>
+          )}
+          {!infoLoading && faqPreview.length > 0 && (
+            <div className="divide-y divide-gray-100 rounded-xl border border-gray-100">
+              {faqPreview.map((item, idx) => (
+                <details
+                  key={idx}
+                  className="group px-4 py-1 open:bg-gray-50/80"
+                >
+                  <summary className="cursor-pointer list-none py-3 pr-2 text-left text-sm font-medium text-gray-900 marker:content-none [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-start justify-between gap-2">
+                      <span>{item.question}</span>
+                      <span className="mt-0.5 shrink-0 text-gray-400 transition group-open:rotate-180">
+                        ▼
+                      </span>
+                    </span>
+                  </summary>
+                  <div className="markdown-faq border-t border-gray-100 pb-4 pt-2 text-sm text-gray-600">
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => (
+                          <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol className="mb-2 list-decimal space-y-1 pl-5">{children}</ol>
+                        ),
+                        strong: ({ children }) => (
+                          <strong className="font-semibold text-gray-800">{children}</strong>
+                        ),
+                      }}
+                    >
+                      {item.answer}
+                    </ReactMarkdown>
+                  </div>
+                </details>
+              ))}
+            </div>
+          )}
         </section>
+
+        <div className="flex justify-center pb-4">
+          <Link
+            href={reportsHref}
+            className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-8 py-4 text-base font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
+          >
+            Start your analysis
+            <FiFileText className="h-5 w-5" aria-hidden />
+          </Link>
+        </div>
       </div>
     </Layout>
   );

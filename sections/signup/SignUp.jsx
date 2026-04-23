@@ -2,10 +2,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { registerUser } from "../../utils/api";
+import { registerUser, loginWithGoogle } from "../../utils/api";
 import { normalizeApiError } from "../../utils/apiErrors";
 import { useAuth } from "../../AuthProvider";
 import { AuthError, AuthInfo, AuthSuccess } from "../../components/auth/AuthFeedback";
+import GoogleAuthButton from "../../components/auth/GoogleAuthButton";
 import "react-phone-number-input/style.css";
 import PhoneInput from "react-phone-number-input";
 import { IoEye } from "react-icons/io5";
@@ -141,6 +142,37 @@ const SignUp = () => {
       setIsLoading(false);
     }
   };
+
+  const handleGoogleCredential = async (credential) => {
+    setError(null);
+    setFieldErrors({});
+    setSuccess(null);
+    setIsLoading(true);
+    try {
+      const response = await loginWithGoogle(credential);
+      if (!response.status || !response.accessToken || !response.user) {
+        setError(response.message || "Google sign-up failed");
+        return;
+      }
+      localStorage.setItem("accessToken", response.accessToken);
+      if (response.refreshToken) {
+        localStorage.setItem("refreshToken", response.refreshToken);
+      }
+      localStorage.setItem("userId", String(response.user.id));
+      localStorage.setItem("user", JSON.stringify(response.user));
+      login(response.accessToken, {
+        userId: String(response.user.id),
+        firstName: response.user.first_name,
+      });
+      router.push("/dashboard");
+    } catch (err) {
+      const { message } = normalizeApiError(err, "Google sign-up failed");
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0e0e0e] flex flex-col items-center px-4 mt-[5%] w-full max-w-full sm:max-w-3xl mx-auto pb-12">
       {!isRegistered ? (
@@ -148,6 +180,32 @@ const SignUp = () => {
           <h1 className="text-2xl font-semibold mb-4 border-b-2 pb-2 border-[#0062f1]">
             Registration{" "}
           </h1>
+          <div
+            className="flex flex-col items-stretch gap-2 pb-2"
+            role="group"
+            aria-labelledby="signup-google-heading"
+          >
+            <p
+              id="signup-google-heading"
+              className="text-center text-sm font-medium text-white/90"
+            >
+              Sign up with Google
+            </p>
+            <GoogleAuthButton
+              disabled={isLoading}
+              onCredential={handleGoogleCredential}
+            />
+          </div>
+          <div className="relative py-2">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/15" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-[#000000cc] px-2 text-white/70">
+                or register with email
+              </span>
+            </div>
+          </div>
           <form
             className=" shadow-md rounded-md p-6 max-w-2xl w-full text-black"
             onSubmit={handleSubmit}
