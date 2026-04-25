@@ -241,8 +241,7 @@ function Dashboard() {
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               {infoError}{" "}
               <span className="text-gray-600">
-                (Is the API running at your{" "}
-                <code className="rounded bg-white px-1">NEXT_PUBLIC_API_URL</code>?)
+                Please try again in a moment.
               </span>
             </div>
           )}

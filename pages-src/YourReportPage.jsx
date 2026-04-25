@@ -515,11 +515,11 @@ function YourReportPage() {
             View and manage all your medical reports
           </p>
           <p className="mt-2 text-sm text-gray-500">
-            For the full server-generated Health Reveal PDF (Tier-1), go to{' '}
+            For a full downloadable report, go to{' '}
             <a href="/reports" className="text-prime underline font-medium">
               Reports
             </a>{' '}
-            after you run an analysis there — downloads use your account session.
+            after you complete an analysis.
           </p>
         </div>
 
