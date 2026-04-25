@@ -257,49 +257,65 @@ function YourReportPage() {
     if (!report) return null;
 
     return (
-      <div className="fixed inset-0   backdrop-blur-md text-[#fff] z-50 flex items-center justify-center p-4">
-        <div className="bg-[#000] rounded-lg max-w-3xl w-full max-h-[90vh] overflow-hidden">
-          <div className="p-2 bg-prime border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-base font-semibold text-gray-800 flex items-center">
-              <FiFileText className="w-5 h-5 mr-2 text-blue-500" />
-              Report Summary
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: 20 }}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+        >
+          <div className="bg-gradient-to-r from-blue-50 via-white to-indigo-50 border-b border-gray-200 p-5 flex justify-between items-center">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-prime shadow-md flex items-center justify-center">
+                <FiFileText className="w-5 h-5 text-white" />
+              </div>
+              Report summary
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
             >
-              <FiX className="w-6 h-6" />
+              <FiX className="w-5 h-5" />
             </button>
           </div>
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-8rem)] bg-[#000]">
-            <div className="mb-4">
-              <h3 className="font-medium text-gray-700">File Name:</h3>
-              <p className="text-gray-600">{(report.filename || report.fileName || 'Unknown').replace(/^\d+_/, '')}</p>
+          
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-12rem)] bg-white">
+            <div className="mb-5 pb-4 border-b border-gray-100">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">File name</p>
+              <p className="text-gray-900 font-medium">{(report.filename || report.fileName || 'Unknown').replace(/^\d+_/, '')}</p>
             </div>
-            <div className="prose max-w-none">
-            <ReactMarkdown>{report.summary || report.text_content || 'No summary available. You can generate a summary using the summary generation API.'}</ReactMarkdown>
-            </div>
-            <div className="mt-6 pt-4 border-t border-gray-700 flex flex-wrap gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => handleDownloadSummaryPdf(report)}
-                disabled={!(report.summary || report.text_content)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <FiDownload className="w-4 h-4" />
-                Free summary PDF
-              </button>
-              <a
-                href="/reports"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-500/80 text-amber-200 text-sm font-medium hover:bg-white/10"
-              >
-                Health Reveal (full PDF)
-              </a>
+            
+            <div className="prose prose-sm prose-blue max-w-none">
+              <ReactMarkdown>{report.summary || report.text_content || 'Your summary will appear here once processing is complete.'}</ReactMarkdown>
             </div>
           </div>
-     
-        </div>
-      </div>
+
+          <div className="bg-gray-50 border-t border-gray-200 p-5 flex flex-wrap gap-3 justify-end">
+            <button
+              type="button"
+              onClick={() => handleDownloadSummaryPdf(report)}
+              disabled={!(report.summary || report.text_content)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 shadow-md hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              <FiDownload className="w-4 h-4" />
+              Download summary
+            </button>
+            <a
+              href="/reports"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-prime text-prime text-sm font-semibold hover:bg-prime hover:text-white transition-all"
+            >
+              Create full report
+            </a>
+          </div>
+        </motion.div>
+      </motion.div>
     );
   };
 
@@ -309,42 +325,42 @@ function YourReportPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       >
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-[#fff] border border-gray-200 rounded-lg max-w-md w-full p-6 shadow-xl"
-          onClick={e => e.stopPropagation()}
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: 20 }}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
         >
-          <div className="flex items-center justify-center mb-4 text-red-600">
-            <FiTrash2 className="w-12 h-12" />
+          <div className="flex items-center justify-center mb-5">
+            <div className="w-16 h-16 rounded-2xl bg-red-100 flex items-center justify-center">
+              <FiTrash2 className="w-8 h-8 text-red-600" />
+            </div>
           </div>
-          <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-            Delete Report
+          
+          <h3 className="text-2xl font-bold text-gray-900 text-center mb-3">
+            Delete this report?
           </h3>
-          <p className="text-gray-600 text-center mb-6">
-            Are you sure you want to delete this report? <br /> This action cannot be undone and you will permanently lose.
+          <p className="text-gray-600 text-center mb-8 leading-relaxed">
+            This action cannot be undone. Your report and its summary will be permanently removed.
           </p>
-          {/* <ul className="list-disc list-inside text-gray-600 mb-6 space-y-2 bg-red-50 p-4 rounded-lg">
-           
-            <li>The AI-generated analysis summary</li>
-      
-          </ul> */}
-          <div className="flex space-x-4">
+          
+          <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-prime hover:bg-gray-200 text-[#fff] rounded-lg transition-colors duration-200 "
+              className="flex-1 px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
-              className="flex-1 px-4 py-2 bg-[red] hover:bg-red-700 text-[#fff] rounded-lg transition-colors duration-200 flex items-center justify-center"
+              className="flex-1 px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md shadow-red-200"
             >
-              <FiTrash2 className="w-4 h-4 mr-2" />
-              Delete Report
+              <FiTrash2 className="w-4 h-4" />
+              Delete
             </button>
           </div>
         </motion.div>
@@ -356,13 +372,15 @@ function YourReportPage() {
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center"
+      exit={{ opacity: 0, y: 20 }}
+      className="fixed top-4 right-4 bg-white border-2 border-green-500 text-gray-900 px-5 py-3.5 rounded-xl shadow-xl z-50 flex items-center gap-3"
     >
-      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-      </svg>
-      Report deleted successfully
+      <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <span className="font-semibold">Report deleted successfully</span>
     </motion.div>
   );
 
