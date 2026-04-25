@@ -8,8 +8,9 @@ function isBrowserLocalDev(): boolean {
 
 // Support both local and production environments (127.0.0.1 must match localhost).
 // Keep this as API origin only (no /api/v1 suffix), because routes in this file already add /api/... paths.
-export const API_BASE_URL ='https://api.zoctorai.com'
-  
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (isBrowserLocalDev() ? 'http://127.0.0.1:8000' : 'https://api.zoctorai.com');
 
 /**
  * When true, use Zoctor FastAPI routes: `/api/users/auth/*`, `/api/v1/*` (chat, PDF, summaries).
@@ -18,6 +19,8 @@ export const API_BASE_URL ='https://api.zoctorai.com'
 export const isZoctorFastApiBackend = (): boolean => {
   if (process.env.NEXT_PUBLIC_USE_FASTAPI === '1') return true;
   const envUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  if (/api\.zoctorai\.(com|in)/.test(envUrl)) return true;
+  if (/api\.zoctorai\.(com|in)/.test(API_BASE_URL)) return true;
   if (/localhost|127\.0\.0\.1|\[::1\]/.test(envUrl)) return true;
   if (typeof window !== 'undefined') {
     const h = window.location.hostname;
