@@ -54,6 +54,20 @@ const FileUpload = ({ userId: userIdProp }) => {
   const showChatPanel =
     userIdReady && !!effectiveUserId && (zoctorBackend || analysisResults.length > 0);
 
+  const formatAssistantMessage = useCallback((text) => {
+    if (!text || typeof text !== "string") return "";
+    let formatted = text.replace(/\r\n/g, "\n").trim();
+
+    // Ensure clear section breaks before markdown headers.
+    formatted = formatted.replace(/\n(#{1,6}\s)/g, "\n\n$1");
+    // Keep bullet and numbered points visually separated from previous paragraphs.
+    formatted = formatted.replace(/\n((?:[-*]\s)|(?:\d+\.\s))/g, "\n\n$1");
+    // Improve readability when model returns dense prose in one block.
+    formatted = formatted.replace(/([.!?])\s+(?=[A-Z][^a-z])/g, "$1\n\n");
+
+    return formatted;
+  }, []);
+
   useEffect(() => {
     if (userIdProp) {
       setEffectiveUserId(userIdProp);
@@ -1166,8 +1180,21 @@ const FileUpload = ({ userId: userIdProp }) => {
                                   animate={{ x: 0, opacity: 1 }}
                                   transition={{ type: "spring", stiffness: 200, damping: 20 }}
                                 >
-                                  <div className="bg-gradient-to-br from-purple-50 to-white border border-purple-100 px-4 py-2.5 rounded-2xl rounded-tl-sm max-w-[min(85%,45rem)] shadow-sm prose prose-sm">
-                                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                                  <div className="bg-gradient-to-br from-purple-50 to-white border border-purple-100 px-4 py-3 rounded-2xl rounded-tl-sm max-w-[min(85%,45rem)] shadow-sm">
+                                    <ReactMarkdown
+                                      components={{
+                                        p: ({ children }) => <p className="text-[15px] leading-7 text-gray-800 mb-4 last:mb-0">{children}</p>,
+                                        ul: ({ children }) => <ul className="list-disc pl-5 space-y-2 mb-4 last:mb-0 text-[15px] leading-7 text-gray-800">{children}</ul>,
+                                        ol: ({ children }) => <ol className="list-decimal pl-5 space-y-2 mb-4 last:mb-0 text-[15px] leading-7 text-gray-800">{children}</ol>,
+                                        li: ({ children }) => <li className="leading-7">{children}</li>,
+                                        strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                                        h1: ({ children }) => <h1 className="text-lg font-bold text-gray-900 mb-3">{children}</h1>,
+                                        h2: ({ children }) => <h2 className="text-base font-bold text-gray-900 mb-3">{children}</h2>,
+                                        h3: ({ children }) => <h3 className="text-[15px] font-semibold text-gray-900 mb-2">{children}</h3>,
+                                      }}
+                                    >
+                                      {formatAssistantMessage(message.content)}
+                                    </ReactMarkdown>
                                   </div>
                                   <span className="text-xs text-gray-400 mt-1">
                                     {new Date(message.timestamp).toLocaleTimeString()}
