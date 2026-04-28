@@ -9,8 +9,11 @@ import {
   listFamilyProfiles,
   addFamilyProfile,
   deleteFamilyProfile,
+  getFamilyProfileDetails,
+  updateFamilyProfileDetails,
   fileToBase64,
 } from "../../utils/api";
+import { useAuth } from "../../AuthProvider";
 import { CiEdit } from "react-icons/ci";
 import { AiTwotoneDelete } from "react-icons/ai";
 import { motion } from 'framer-motion';
@@ -113,6 +116,7 @@ function mapApiUserToForm(response) {
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
 
 const Profile = () => {
+  const { activeProfile } = useAuth();
   // State for user data, loading status, messages, etc.
   const { userId } = useParams();
   const [userData, setUserData] = useState(null);
@@ -124,7 +128,34 @@ const Profile = () => {
   const [familyLoading, setFamilyLoading] = useState(false);
   const [fmName, setFmName] = useState("");
   const [fmRelation, setFmRelation] = useState("child");
+  const [fmRelationCustom, setFmRelationCustom] = useState("");
   const profilePicInputRef = useRef(null);
+  const ownerUserId = typeof window !== "undefined" ? localStorage.getItem("userId") || "" : "";
+  const activeProfileId = activeProfile?.id || (ownerUserId ? `${ownerUserId}_self` : "");
+  const isSelfProfile = Boolean(ownerUserId) && activeProfileId === `${ownerUserId}_self`;
+
+  const buildBlankProfileForm = (profile) => ({
+    firstName: profile?.name || "",
+    lastName: "",
+    email: "",
+    username: "",
+    phoneNumber: "",
+    description: "",
+    preferredLanguage: "",
+    preferredContactMethod: [],
+    dateOfBirth: "",
+    gender: "",
+    bloodType: "",
+    address: { street: "", city: "", state: "", zipCode: "", country: "" },
+    profilePicture: null,
+    preferredAppointmentTime: "",
+    IsthisWhatsappPhoneNumber: false,
+    willingForInternationalTreatment: false,
+    willingForMedicalTourism: false,
+    wantZoctorAICallback: false,
+    Smoking: false,
+    alchohal: false,
+  });
 
   // Add this inside the Profile component, with the other state variables
   const timeSlots = [
@@ -142,12 +173,46 @@ const Profile = () => {
         setIsLoading(true);
         setErrorMessage("");
         setSuccessMessage("");
-        const response = await fetchUserInfo();
-        console.log("Profile data received:", response);
-
-        const transformedData = mapApiUserToForm(response);
-        console.log("Transformed data:", transformedData);
-        setUserData(transformedData);
+        if (isSelfProfile) {
+          const response = await fetchUserInfo();
+          const transformedData = mapApiUserToForm(response);
+          setUserData(transformedData);
+        } else {
+          if (!ownerUserId || !activeProfileId) {
+            setUserData(buildBlankProfileForm(activeProfile));
+            return;
+          }
+          const profileRes = await getFamilyProfileDetails(ownerUserId, activeProfileId).catch(() => null);
+          const p = profileRes?.profile;
+          if (p) {
+            setUserData(
+              mapApiUserToForm({
+                email: "",
+                username: "",
+                first_name: p.first_name || (p.name || "").split(" ").slice(0, 1).join(""),
+                last_name: p.last_name || (p.name || "").split(" ").slice(1).join(" "),
+                phone: p.phone,
+                description: p.description,
+                preferred_language: p.preferred_language,
+                preferred_contact_methods: p.preferred_contact_methods || [],
+                date_of_birth: p.date_of_birth,
+                gender: p.gender,
+                blood_type: p.blood_type,
+                address: p.address,
+                preferred_appointment_time: p.preferred_appointment_time,
+                is_whatsapp_phone: p.is_whatsapp_phone,
+                willing_international_treatment: p.willing_international_treatment,
+                willing_medical_tourism: p.willing_medical_tourism,
+                want_zoctor_callback: p.want_zoctor_callback,
+                smoking: p.smoking,
+                alcohol: p.alcohol,
+                profile_picture: p.profile_picture,
+              })
+            );
+          } else {
+            setUserData(buildBlankProfileForm(activeProfile));
+          }
+        }
       } catch (error) {
         console.error("Error loading user info:", error);
         const errorMsg = error.response?.data?.detail || 
@@ -171,7 +236,7 @@ const Profile = () => {
     // Fetch user data regardless of userId from route
     // The API endpoint /api/users/auth/me uses the authenticated user's token
     getUserData();
-  }, [userId]); // Keep userId in deps in case we need to refetch for specific user later
+  }, [userId, isSelfProfile, ownerUserId, activeProfileId, activeProfile]); // Keep userId in deps in case we need to refetch for specific user later
 
   useEffect(() => {
     if (!isZoctorFastApiBackend() || typeof window === "undefined") return;
@@ -197,12 +262,22 @@ const Profile = () => {
   const handleAddFamily = async (e) => {
     e.preventDefault();
     if (!fmName.trim()) return;
+    const finalRelation =
+      fmRelation === "other"
+        ? (fmRelationCustom || "").trim().toLowerCase()
+        : fmRelation;
+    if (!finalRelation) {
+      setErrorMessage("Please enter relation name when selecting Other.");
+      return;
+    }
     const uid = localStorage.getItem("userId");
     if (!uid) return;
     try {
       setErrorMessage("");
-      await addFamilyProfile(uid, { name: fmName.trim(), relation: fmRelation });
+      await addFamilyProfile(uid, { name: fmName.trim(), relation: finalRelation });
       setFmName("");
+      setFmRelation("child");
+      setFmRelationCustom("");
       const r = await listFamilyProfiles(uid);
       setFamilyProfiles(r.profiles || []);
       setSuccessMessage("Family member added.");
@@ -285,8 +360,15 @@ const Profile = () => {
         alcohol: finalUpdates.alchohal
       };
 
-      const response = await updateUserInfo(null, apiData);
-      setSuccessMessage(response.msg || response.message || "Profile updated successfully!");
+      if (isSelfProfile) {
+        const response = await updateUserInfo(null, apiData);
+        setSuccessMessage(response.msg || response.message || "Profile updated successfully!");
+      } else {
+        if (ownerUserId && activeProfileId) {
+          await updateFamilyProfileDetails(ownerUserId, activeProfileId, apiData);
+        }
+        setSuccessMessage("Profile updated successfully!");
+      }
     } catch (error) {
       const errorMsg = error.response?.data?.detail || 
                       error.response?.data?.message || 
@@ -379,23 +461,36 @@ const Profile = () => {
       const b64 = await fileToBase64(file);
       const mime = file.type || "image/jpeg";
       const dataUrl = `data:${mime};base64,${b64}`;
-      const response = await updateUserInfo(null, {
-        profile_picture: { url: dataUrl },
-      });
-      if (response.user) {
-        setUserData((prev) => ({
-          ...mapApiUserToForm(response.user),
-          customPreferredTime: prev?.customPreferredTime,
-        }));
+      if (isSelfProfile) {
+        const response = await updateUserInfo(null, {
+          profile_picture: { url: dataUrl },
+        });
+        if (response.user) {
+          setUserData((prev) => ({
+            ...mapApiUserToForm(response.user),
+            customPreferredTime: prev?.customPreferredTime,
+          }));
+        } else {
+          setUserData((prev) => ({
+            ...prev,
+            profilePicture: { url: dataUrl },
+          }));
+        }
+        setSuccessMessage(
+          response.msg || response.message || "Profile picture updated."
+        );
       } else {
         setUserData((prev) => ({
           ...prev,
           profilePicture: { url: dataUrl },
         }));
+        if (ownerUserId && activeProfileId) {
+          await updateFamilyProfileDetails(ownerUserId, activeProfileId, {
+            profile_picture: { url: dataUrl },
+          });
+        }
+        setSuccessMessage("Profile picture updated.");
       }
-      setSuccessMessage(
-        response.msg || response.message || "Profile picture updated."
-      );
       if (profilePicInputRef.current) profilePicInputRef.current.value = "";
     } catch (error) {
       const detail =
@@ -423,18 +518,28 @@ const Profile = () => {
     setErrorMessage("");
     setSuccessMessage("");
     try {
-      const response = await updateUserInfo(null, { profile_picture: null });
-      if (response.user) {
-        setUserData((prev) => ({
-          ...mapApiUserToForm(response.user),
-          customPreferredTime: prev?.customPreferredTime,
-        }));
+      if (isSelfProfile) {
+        const response = await updateUserInfo(null, { profile_picture: null });
+        if (response.user) {
+          setUserData((prev) => ({
+            ...mapApiUserToForm(response.user),
+            customPreferredTime: prev?.customPreferredTime,
+          }));
+        } else {
+          setUserData((prev) => ({ ...prev, profilePicture: null }));
+        }
+        setSuccessMessage(
+          response.msg || response.message || "Profile picture removed."
+        );
       } else {
         setUserData((prev) => ({ ...prev, profilePicture: null }));
+        if (ownerUserId && activeProfileId) {
+          await updateFamilyProfileDetails(ownerUserId, activeProfileId, {
+            profile_picture: null,
+          });
+        }
+        setSuccessMessage("Profile picture removed.");
       }
-      setSuccessMessage(
-        response.msg || response.message || "Profile picture removed."
-      );
     } catch (error) {
       const detail =
         error.response?.data?.detail ||
@@ -476,17 +581,19 @@ const Profile = () => {
       </div>
 
       {/* Profile Completion Progress */}
-      <div className="mb-6 max-w-4xl mx-auto">
-        <p className="text-xs font-medium text-[#707070]">
-          Profile Completion: {calculateProfileCompletion()}%
-        </p>
-        <div className="w-full bg-gray-300 rounded-full h-2">
-          <div
-            className="bg-prime h-2 rounded-full"
-            style={{ width: `${calculateProfileCompletion()}%` }}
-          ></div>
+      {calculateProfileCompletion() < 100 && (
+        <div className="mb-6 max-w-4xl mx-auto">
+          <p className="text-xs font-medium text-[#707070]">
+            Profile Completion: {calculateProfileCompletion()}%
+          </p>
+          <div className="w-full bg-gray-300 rounded-full h-2">
+            <div
+              className="bg-prime h-2 rounded-full"
+              style={{ width: `${calculateProfileCompletion()}%` }}
+            ></div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Success & Error Messages */}
       {errorMessage && (
@@ -550,12 +657,31 @@ const Profile = () => {
                 className="px-3 py-2 border rounded-lg"
               >
                 <option value="spouse">Spouse</option>
+                <option value="wife">Wife</option>
+                <option value="husband">Husband</option>
                 <option value="child">Child</option>
+                <option value="son">Son</option>
+                <option value="daughter">Daughter</option>
                 <option value="parent">Parent</option>
+                <option value="father">Father</option>
+                <option value="mother">Mother</option>
                 <option value="sibling">Sibling</option>
+                <option value="brother">Brother</option>
+                <option value="sister">Sister</option>
                 <option value="other">Other</option>
               </select>
             </div>
+            {fmRelation === "other" && (
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Custom relation</label>
+                <input
+                  value={fmRelationCustom}
+                  onChange={(e) => setFmRelationCustom(e.target.value)}
+                  className="px-3 py-2 border rounded-lg"
+                  placeholder="e.g. uncle, aunt, guardian"
+                />
+              </div>
+            )}
             <button type="submit" className="bg-prime text-white px-4 py-2 rounded-lg hover:bg-blue-600">
               Add member
             </button>

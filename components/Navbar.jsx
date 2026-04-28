@@ -10,7 +10,7 @@ import LanguageSwitcher from "./LanguageSwitcher";
 import { useTranslation } from 'react-i18next';
 function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { isAuthenticated } = useContext(AuthContext);
+  const { isAuthenticated, activeProfile, profiles = [], setActiveProfile } = useContext(AuthContext);
   const { i18n } = useTranslation();
   const isRTL = ['ar', 'ur'].includes(i18n.language);
   const { t } = useTranslation();
@@ -84,6 +84,22 @@ function Navbar() {
         {isAuthenticated ? (
             /* Logged in: welcome + Dashboard */
             <div className="flex items-center gap-3 text-white ml-5 flex-wrap justify-end">
+              {profiles.length > 1 && (
+                <select
+                  value={activeProfile?.id || ""}
+                  onChange={(e) => {
+                    const p = profiles.find((x) => x.id === e.target.value);
+                    if (p) setActiveProfile?.(p);
+                  }}
+                  className="bg-white/10 border border-white/20 rounded-xl px-2 py-1 text-xs sm:text-sm text-white"
+                >
+                  {profiles.map((p) => (
+                    <option key={p.id} value={p.id} className="text-black">
+                      {p.name} ({p.relation})
+                    </option>
+                  ))}
+                </select>
+              )}
               <p className="font-bold text-white hidden sm:block">
                 {t('nav.welcome', { name: firstName })}
               </p>

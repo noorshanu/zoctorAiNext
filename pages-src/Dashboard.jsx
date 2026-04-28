@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import {
   FiFileText,
@@ -76,6 +77,7 @@ function sortTierEntries(pricing) {
 }
 
 function Dashboard() {
+  const router = useRouter();
   const [userId, setUserId] = useState(null);
   const [firstName, setFirstName] = useState("");
   const [localInfo, setLocalInfo] = useState(null);
@@ -84,6 +86,13 @@ function Dashboard() {
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
+    if (storedUserId) {
+      const mustChoose = localStorage.getItem(`post_login_ui_${storedUserId}`) === "1";
+      if (mustChoose) {
+        router.replace("/choose-profile");
+        return;
+      }
+    }
     if (storedUserId) setUserId(storedUserId);
     const fn = localStorage.getItem("firstName");
     if (fn) {
@@ -99,7 +108,7 @@ function Dashboard() {
         /* ignore */
       }
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;

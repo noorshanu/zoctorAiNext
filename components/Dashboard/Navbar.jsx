@@ -16,7 +16,7 @@ const socialClass =
 function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const router = useRouter();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, profiles = [], activeProfile, setActiveProfile } = useAuth();
   const [firstName, setFirstName] = useState("");
   const menuRef = useRef(null);
 
@@ -91,6 +91,26 @@ function Navbar() {
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
+          {profiles.length > 1 && (
+            <div className="mr-2 hidden sm:block">
+              <select
+                value={activeProfile?.id || ""}
+                onChange={(e) => {
+                  const p = profiles.find((x) => x.id === e.target.value);
+                  if (p) setActiveProfile?.(p);
+                }}
+                className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-prime/60"
+                aria-label="Switch profile"
+              >
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id} className="text-black">
+                    {p.name} ({p.relation})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div
             className="mr-1 flex items-center rounded-xl border border-white/10 bg-white/5 p-0.5 sm:mr-2"
             aria-label="Social links"
@@ -148,6 +168,31 @@ function Navbar() {
                 role="menu"
                 className="absolute right-0 mt-2 w-48 origin-top-right overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl ring-1 ring-black/5"
               >
+                {profiles.length > 1 && (
+                  <>
+                    <p className="px-4 pt-2 pb-1 text-[11px] uppercase tracking-wide text-gray-500">Switch profile</p>
+                    {profiles.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setActiveProfile?.(p);
+                          setDropdownOpen(false);
+                        }}
+                        className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition hover:bg-gray-50 ${
+                          activeProfile?.id === p.id ? "text-prime font-semibold" : "text-gray-700"
+                        }`}
+                      >
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold">
+                          {(p.name || "P").charAt(0).toUpperCase()}
+                        </span>
+                        <span className="truncate">{p.name}</span>
+                      </button>
+                    ))}
+                    <div className="my-0.5 h-px bg-gray-100" />
+                  </>
+                )}
                 <Link
                   href="/profile/"
                   role="menuitem"

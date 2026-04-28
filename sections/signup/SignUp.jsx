@@ -122,7 +122,7 @@ const SignUp = () => {
             userId: String(response.user.id),
             firstName: response.user.first_name,
           });
-          router.push("/dashboard");
+          router.push("/choose-profile");
           return;
         }
         setIsRegistered(true);
@@ -164,7 +164,7 @@ const SignUp = () => {
         userId: String(response.user.id),
         firstName: response.user.first_name,
       });
-      router.push("/dashboard");
+      router.push("/choose-profile");
     } catch (err) {
       const { message } = normalizeApiError(err, "Google sign-up failed");
       setError(message);

@@ -10,13 +10,15 @@ import { FiFilePlus } from "react-icons/fi";
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip } from 'react-tooltip';
+import { useAuth } from '../AuthProvider';
 
-async function fetchDocumentBlob(docId) {
+async function fetchDocumentBlob(docId, profileId) {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
   const base = String(API_BASE_URL).replace(/\/$/, "");
+  const qs = profileId ? `?profile_id=${encodeURIComponent(profileId)}` : "";
   const res = await fetch(
-    `${base}/api/documents/${encodeURIComponent(docId)}/download/`,
+    `${base}/api/documents/${encodeURIComponent(docId)}/download/${qs}`,
     {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       credentials: "include",
@@ -90,6 +92,7 @@ const LoadingAnimation = () => {
 };
 
 function YourReportPage() {
+  const { activeProfile } = useAuth();
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -98,9 +101,11 @@ function YourReportPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState({ show: false, reportId: null });
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
 
+  const activeProfileId = activeProfile?.id;
+
   useEffect(() => {
     fetchReports();
-  }, []);
+  }, [activeProfileId]);
 
   const fetchReports = async () => {
     try {
@@ -111,7 +116,9 @@ function YourReportPage() {
         tokenPreview: token ? `${token.slice(0, 10)}...` : 'no token'
       });
 
-      const response = await api.get("/api/documents/");
+      const response = await api.get("/api/documents/", {
+        params: activeProfileId ? { profile_id: activeProfileId } : undefined,
+      });
 
       console.log("Debug - API Response:", {
         status: response.status,
@@ -185,7 +192,7 @@ function YourReportPage() {
     const id = report?.id;
     if (!id) return;
     try {
-      const blob = await fetchDocumentBlob(id);
+      const blob = await fetchDocumentBlob(id, activeProfileId);
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
@@ -211,7 +218,7 @@ function YourReportPage() {
     const id = report?.id;
     if (!id) return;
     try {
-      const blob = await fetchDocumentBlob(id);
+      const blob = await fetchDocumentBlob(id, activeProfileId);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -398,7 +405,9 @@ function YourReportPage() {
         return;
       }
 
-      await api.delete(`/api/documents/${reportId}/`);
+      await api.delete(`/api/documents/${reportId}/`, {
+        params: activeProfileId ? { profile_id: activeProfileId } : undefined,
+      });
 
       // Remove the deleted report from the state
       setReports(prev => prev.filter(report => report.id !== reportId));

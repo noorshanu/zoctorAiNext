@@ -120,7 +120,7 @@ export const fileToBase64 = (file: File): Promise<string> => {
 };
 
 // File upload function - Updated to use base64 as per backend API
-export const uploadFile = async (file: File, sessionId?: string) => {
+export const uploadFile = async (file: File, sessionId?: string, profileId?: string) => {
   try {
     // Validate file size (10MB limit)
     if (file.size > 10 * 1024 * 1024) {
@@ -142,7 +142,8 @@ export const uploadFile = async (file: File, sessionId?: string) => {
     const payload = {
       filename: file.name,
       data_base64: base64Data,
-      ...(sessionId && { session_id: sessionId })
+      ...(sessionId && { session_id: sessionId }),
+      ...(profileId && { profile_id: profileId }),
     };
 
     console.log('Uploading file:', {
@@ -449,9 +450,11 @@ export const streamChatResponse = (
 /**
  * Get list of user's documents
  */
-export const getDocuments = async () => {
+export const getDocuments = async (profileId?: string) => {
   try {
-    const response = await api.get('/api/documents/');
+    const response = await api.get('/api/documents/', {
+      params: profileId ? { profile_id: profileId } : undefined,
+    });
     return response.data;
   } catch (error: any) {
     console.error("Get documents error:", error.response?.data || error.message);
@@ -460,8 +463,16 @@ export const getDocuments = async () => {
 };
 
 /** Attach AI summary to an uploaded document (Your Reports). */
-export const updateDocumentSummary = async (documentId: string, summary: string) => {
-  const response = await api.patch(`/api/documents/${documentId}/`, { summary });
+export const updateDocumentSummary = async (
+  documentId: string,
+  summary: string,
+  profileId?: string
+) => {
+  const response = await api.patch(
+    `/api/documents/${documentId}/`,
+    { summary },
+    { params: profileId ? { profile_id: profileId } : undefined }
+  );
   return response.data;
 };
 
@@ -714,6 +725,44 @@ export const deleteFamilyProfile = async (userId: string, profileId: string) => 
     throw new Error(data?.message || data?.detail || `Delete profile failed (${res.status})`);
   }
   return data;
+};
+
+export const getFamilyProfileDetails = async (userId: string, profileId: string) => {
+  const res = await fetch(
+    `${String(API_BASE_URL).replace(
+      /\/$/,
+      ''
+    )}/api/paid-reports/profiles/${encodeURIComponent(userId)}/${encodeURIComponent(profileId)}`,
+    { method: 'GET', headers: await authHeadersJson() }
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.detail || `Get profile failed (${res.status})`);
+  }
+  return data as { profile: any };
+};
+
+export const updateFamilyProfileDetails = async (
+  userId: string,
+  profileId: string,
+  patch: Record<string, any>
+) => {
+  const res = await fetch(
+    `${String(API_BASE_URL).replace(
+      /\/$/,
+      ''
+    )}/api/paid-reports/profiles/${encodeURIComponent(userId)}/${encodeURIComponent(profileId)}`,
+    {
+      method: 'PATCH',
+      headers: await authHeadersJson(),
+      body: JSON.stringify(patch),
+    }
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || data?.detail || `Update profile failed (${res.status})`);
+  }
+  return data as { success: boolean; profile: any };
 };
 
 const paidReportsBase = () => `${String(API_BASE_URL).replace(/\/$/, '')}/api/paid-reports`;

@@ -23,8 +23,10 @@ import {
   downloadPaidReportPdf,
   getMyPaidOrderStatus,
 } from "../../utils/api";
+import { useAuth } from "../../AuthProvider";
 
 const FileUpload = ({ userId: userIdProp }) => {
+  const { activeProfile } = useAuth();
   const router = useRouter();
   const [effectiveUserId, setEffectiveUserId] = useState(userIdProp || '');
   const [userIdReady, setUserIdReady] = useState(!!userIdProp);
@@ -53,6 +55,9 @@ const FileUpload = ({ userId: userIdProp }) => {
   const zoctorBackend = isZoctorFastApiBackend();
   const showChatPanel =
     userIdReady && !!effectiveUserId && (zoctorBackend || analysisResults.length > 0);
+  const activeProfileId = activeProfile?.id || (effectiveUserId ? `${effectiveUserId}_self` : null);
+  const profileScopeKey = activeProfileId || (effectiveUserId ? `${effectiveUserId}_self` : "");
+  const chatScopedUserId = profileScopeKey || effectiveUserId;
 
   const formatAssistantMessage = useCallback((text) => {
     if (!text || typeof text !== "string") return "";
@@ -123,7 +128,7 @@ const FileUpload = ({ userId: userIdProp }) => {
   useEffect(() => {
     const loadChatHistory = () => {
       try {
-        const savedHistory = localStorage.getItem(`chat_history_${effectiveUserId}`);
+        const savedHistory = localStorage.getItem(`chat_history_${profileScopeKey}`);
         if (savedHistory) {
           setChatHistory(JSON.parse(savedHistory));
         }
@@ -132,16 +137,16 @@ const FileUpload = ({ userId: userIdProp }) => {
       }
     };
 
-    if (effectiveUserId) {
+    if (effectiveUserId && profileScopeKey) {
       loadChatHistory();
     }
-  }, [effectiveUserId]);
+  }, [effectiveUserId, profileScopeKey]);
 
   useEffect(() => {
-    if (effectiveUserId && chatHistory.length > 0) {
-      localStorage.setItem(`chat_history_${effectiveUserId}`, JSON.stringify(chatHistory));
+    if (profileScopeKey && chatHistory.length > 0) {
+      localStorage.setItem(`chat_history_${profileScopeKey}`, JSON.stringify(chatHistory));
     }
-  }, [chatHistory, effectiveUserId]);
+  }, [chatHistory, profileScopeKey]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -211,8 +216,8 @@ const FileUpload = ({ userId: userIdProp }) => {
 
   const clearChatHistory = useCallback(() => {
     setChatHistory([]);
-    localStorage.removeItem(`chat_history_${effectiveUserId}`);
-  }, [effectiveUserId]);
+    if (profileScopeKey) localStorage.removeItem(`chat_history_${profileScopeKey}`);
+  }, [profileScopeKey]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -250,10 +255,11 @@ const FileUpload = ({ userId: userIdProp }) => {
       setErrorMessage("");
       setAnalysisProgress(0);
 
-      let sessionId = localStorage.getItem('sessionId');
+      const profileSessionKey = profileScopeKey ? `sessionId_${profileScopeKey}` : "sessionId";
+      let sessionId = localStorage.getItem(profileSessionKey);
       if (!sessionId) {
         sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('sessionId', sessionId);
+        localStorage.setItem(profileSessionKey, sessionId);
       }
 
       if (zoctorBackend) {
@@ -282,11 +288,11 @@ const FileUpload = ({ userId: userIdProp }) => {
           throw new Error('Could not read enough text from PDFs. Try text-based PDFs or re-export from your lab portal.');
         }
         if (typeof window !== 'undefined' && effectiveUserId) {
-          sessionStorage.setItem(`zoctor_report_raw_${effectiveUserId}`, combined);
+          sessionStorage.setItem(`zoctor_report_raw_${profileScopeKey}`, combined);
         }
         setAnalysisProgress(75);
         const summaryPayload = await zoctorGenerateSummary({
-          user_id: effectiveUserId,
+          user_id: chatScopedUserId,
           raw_text: combined,
           session_id: sessionId,
           location: 'New Delhi',
@@ -294,7 +300,7 @@ const FileUpload = ({ userId: userIdProp }) => {
         });
         const summaryText = summaryPayload.summary || '';
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem(`zoctor_report_context_${effectiveUserId}`, summaryText);
+          sessionStorage.setItem(`zoctor_report_context_${profileScopeKey}`, summaryText);
         }
         setAnalysisProgress(100);
         const filesSnapshot = [...selectedFiles];
@@ -315,9 +321,9 @@ const FileUpload = ({ userId: userIdProp }) => {
         (async () => {
           for (const fileObj of filesSnapshot) {
             try {
-              const up = await uploadFile(fileObj.file, sessionId);
+              const up = await uploadFile(fileObj.file, sessionId, activeProfileId || undefined);
               if (up?.id && summaryText) {
-                await updateDocumentSummary(up.id, summaryText);
+                await updateDocumentSummary(up.id, summaryText, activeProfileId || undefined);
               }
             } catch (e) {
               console.warn('Could not save report to Your Reports library:', e);
@@ -336,7 +342,7 @@ const FileUpload = ({ userId: userIdProp }) => {
         try {
           setFileStatuses(prev => ({ ...prev, [fileObj.id]: 'uploading' }));
           
-          const uploadResponse = await uploadFile(fileObj.file, sessionId);
+          const uploadResponse = await uploadFile(fileObj.file, sessionId, activeProfileId || undefined);
           
           uploadResults.push({
             fileId: fileObj.id,
@@ -470,16 +476,17 @@ const FileUpload = ({ userId: userIdProp }) => {
 
       if (zoctorBackend) {
         try {
-          const sessionId = localStorage.getItem('sessionId') || undefined;
+          const profileSessionKey = profileScopeKey ? `sessionId_${profileScopeKey}` : "sessionId";
+          const sessionId = localStorage.getItem(profileSessionKey) || undefined;
           let context = '';
           if (typeof window !== 'undefined') {
-            context = sessionStorage.getItem(`zoctor_report_context_${effectiveUserId}`) || '';
+            context = sessionStorage.getItem(`zoctor_report_context_${profileScopeKey}`) || '';
           }
           if (!context && analysisResults.length > 0) {
             context = analysisResults[0].summary || '';
           }
           const { reply } = await zoctorChatReply({
-            user_id: effectiveUserId,
+            user_id: chatScopedUserId,
             message: questionText,
             context,
             session_id: sessionId,
@@ -637,11 +644,11 @@ const FileUpload = ({ userId: userIdProp }) => {
     const withSummary = analysisResults.find((x) => x?.summary && String(x.summary).trim());
     if (withSummary) return withSummary;
     if (typeof window !== 'undefined' && effectiveUserId) {
-      const t = sessionStorage.getItem(`zoctor_report_context_${effectiveUserId}`);
+      const t = sessionStorage.getItem(`zoctor_report_context_${profileScopeKey}`);
       if (t && t.trim()) return { summary: t, text_content: t };
     }
     return null;
-  }, [analysisResults, effectiveUserId]);
+  }, [analysisResults, profileScopeKey]);
 
   const handleDownloadFreeSummaryQuick = async () => {
     const payload = getFreeSummaryForDownload();
@@ -666,9 +673,9 @@ const FileUpload = ({ userId: userIdProp }) => {
 
   const getHealthRevealSourceText = useCallback(() => {
     if (typeof window !== 'undefined' && effectiveUserId) {
-      const raw = sessionStorage.getItem(`zoctor_report_raw_${effectiveUserId}`);
+      const raw = sessionStorage.getItem(`zoctor_report_raw_${profileScopeKey}`);
       if (raw && raw.trim().length >= 50) return raw.trim();
-      const sum = sessionStorage.getItem(`zoctor_report_context_${effectiveUserId}`);
+      const sum = sessionStorage.getItem(`zoctor_report_context_${profileScopeKey}`);
       if (sum && sum.trim().length >= 50) return sum.trim();
     }
     const s = analysisResults[0]?.summary;
@@ -678,9 +685,9 @@ const FileUpload = ({ userId: userIdProp }) => {
 
   useEffect(() => {
     if (typeof window === 'undefined' || !effectiveUserId) return;
-    const stored = sessionStorage.getItem(`health_reveal_payment_id_${effectiveUserId}`);
+    const stored = sessionStorage.getItem(`health_reveal_payment_id_${profileScopeKey}`);
     if (stored) setHealthRevealPaymentId(stored);
-  }, [effectiveUserId]);
+  }, [profileScopeKey]);
 
   useEffect(() => {
     if (!zoctorBackend || !healthRevealPaymentId) {
@@ -715,19 +722,19 @@ const FileUpload = ({ userId: userIdProp }) => {
       if (!pid) {
         const initRes = await initiatePaidReport(effectiveUserId, {
           tier: 'tier_1',
-          profile_id: `${effectiveUserId}_self`,
+          profile_id: activeProfileId,
           skip_report_check: true,
         });
         const rawId = initRes.payment_id;
         if (!rawId) throw new Error('No payment_id returned');
         pid = String(rawId);
         setHealthRevealPaymentId(pid);
-        sessionStorage.setItem(`health_reveal_payment_id_${effectiveUserId}`, pid);
+        sessionStorage.setItem(`health_reveal_payment_id_${profileScopeKey}`, pid);
       }
       const res = await confirmPaidReport(effectiveUserId, {
         payment_id: pid,
         confirmation: 'confirm payment',
-        profile_id: `${effectiveUserId}_self`,
+        profile_id: activeProfileId,
         report_text: reportText,
         patient_name: 'Patient',
       });

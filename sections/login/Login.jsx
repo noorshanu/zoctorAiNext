@@ -51,7 +51,7 @@ function Login() {
         userId: response.userId,
         firstName: response.firstName,
       });
-      router.push(`/dashboard`);
+      router.push(`/choose-profile`);
     } catch (err) {
       const { message } = normalizeApiError(err, "Google sign-in failed");
       setError(message);
@@ -86,7 +86,7 @@ function Login() {
         firstName: response.firstName,
       });
 
-      router.push(`/dashboard`);
+      router.push(`/choose-profile`);
     } catch (err) {
       const { message } = normalizeApiError(err, "Login failed");
 
@@ -138,7 +138,7 @@ function Login() {
         userId: user?.id,
         firstName: user?.first_name,
       });
-      router.push(`/dashboard`);
+      router.push(`/choose-profile`);
     } catch (verifyErr) {
       const n = normalizeApiError(verifyErr, "Invalid OTP. Please try again.");
       setError(n.message);
