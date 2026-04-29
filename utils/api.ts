@@ -220,13 +220,14 @@ export const registerUser = async (userData: {
     console.log("Sending payload:", apiData);
     console.log("Signup raw response:", response.status, response.data);
 
-    // Transform backend response to match frontend expectations (session-based)
+    // Transform backend response to match frontend expectations
     const d = response.data;
     return {
       status: response.status >= 200 && response.status < 300,
       message: d?.message ?? 'Registration completed',
       sessionId: d?.session_id,
       ttlSeconds: d?.ttl_seconds,
+      requiresOtp: Boolean(d?.session_id && !d?.access),
       cooldownWaitSeconds: d?.cooldown_wait_seconds,
       user: d?.user,
       accessToken: d?.access,
@@ -292,7 +293,22 @@ export const loginUser = async (credentials: { identifier: string; password: str
 };
 
 // Send OTP for account verification
-export const sendOtp = async (payload: { identifier: string }) => {
+export const sendOtp = async (payload: {
+  identifier: string;
+  purpose?: "forgot_password" | "signup";
+  signup_payload?: {
+    email: string;
+    password: string;
+    confirm_password: string;
+    first_name: string;
+    last_name: string;
+    phone?: string;
+    description?: string;
+    preferred_contact_methods?: string[];
+    preferred_language?: string;
+    username?: string;
+  };
+}) => {
   try {
     const response = await api.post('/api/users/auth/send-otp', payload);
     return response.data;
@@ -303,7 +319,11 @@ export const sendOtp = async (payload: { identifier: string }) => {
 };
 
 // Verify OTP for account verification
-export const verifyOtp = async (payload: { session_id: string; code: string }) => {
+export const verifyOtp = async (payload: {
+  session_id: string;
+  code: string;
+  new_password?: string;
+}) => {
   try {
     const response = await api.post('/api/users/auth/verify-otp', payload);
     return response.data;
@@ -312,6 +332,15 @@ export const verifyOtp = async (payload: { session_id: string; code: string }) =
     throw error.response?.data || error.message;
   }
 };
+
+export const requestForgotPasswordOtp = async (identifier: string) =>
+  sendOtp({ identifier, purpose: "forgot_password" });
+
+export const resetPasswordWithOtp = async (
+  sessionId: string,
+  code: string,
+  newPassword: string
+) => verifyOtp({ session_id: sessionId, code, new_password: newPassword });
 
 // Refresh Token
 export const refreshAccessToken = async () => {

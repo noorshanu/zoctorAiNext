@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { registerUser, loginWithGoogle } from "../../utils/api";
+import { registerUser, loginWithGoogle, verifyOtp } from "../../utils/api";
 import { normalizeApiError } from "../../utils/apiErrors";
 import { useAuth } from "../../AuthProvider";
 import { AuthError, AuthInfo, AuthSuccess } from "../../components/auth/AuthFeedback";
@@ -38,6 +38,9 @@ const SignUp = () => {
   const [isRegistered, setIsRegistered] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [otpRequired, setOtpRequired] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSessionId, setOtpSessionId] = useState("");
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -102,10 +105,11 @@ const SignUp = () => {
         preferred_language: formData.preferredLanguage
       });
       console.log("Signup mapped response:", response);
-      if (response.sessionId) {
-        // store session for later OTP verification flows
-        sessionStorage.setItem('signup_session_id', response.sessionId);
-        sessionStorage.setItem('signup_session_ttl', String(response.ttlSeconds ?? ''));
+      if (response.status && response.requiresOtp && response.sessionId) {
+        setOtpRequired(true);
+        setOtpSessionId(response.sessionId);
+        setSuccess(response.message || "OTP sent. Please verify to complete signup.");
+        return;
       }
 
       if (response.status) {
@@ -138,6 +142,33 @@ const SignUp = () => {
       );
       setError(message);
       setFieldErrors(fe && Object.keys(fe).length ? fe : {});
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifySignupOtp = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const r = await verifyOtp({ session_id: otpSessionId, code: otpCode });
+      if (!r?.access || !r?.user) {
+        setError(r?.message || "Could not verify OTP.");
+        return;
+      }
+      localStorage.setItem("accessToken", r.access);
+      if (r.refresh) localStorage.setItem("refreshToken", r.refresh);
+      localStorage.setItem("userId", String(r.user.id));
+      localStorage.setItem("user", JSON.stringify(r.user));
+      login(r.access, {
+        userId: String(r.user.id),
+        firstName: r.user.first_name,
+      });
+      router.push("/choose-profile");
+    } catch (err) {
+      const { message } = normalizeApiError(err, "Invalid OTP. Please try again.");
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -206,6 +237,7 @@ const SignUp = () => {
               </span>
             </div>
           </div>
+          {!otpRequired ? (
           <form
             className=" shadow-md rounded-md p-6 max-w-2xl w-full text-black"
             onSubmit={handleSubmit}
@@ -490,6 +522,28 @@ const SignUp = () => {
               </Link>
             </p>
           </form>
+          ) : (
+            <form className="p-6 max-w-md w-full mx-auto" onSubmit={handleVerifySignupOtp}>
+              <label className="block text-white font-medium mb-2">Enter 4-digit OTP sent to your email</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                className="w-full p-3 border rounded-lg text-black"
+                placeholder="1234"
+                required
+              />
+              <button
+                type="submit"
+                disabled={isLoading || otpCode.length !== 4}
+                className="mt-4 w-full p-3 text-white bg-prime rounded-lg hover:bg-blue-600 disabled:opacity-50"
+              >
+                {isLoading ? "Verifying..." : "Verify OTP"}
+              </button>
+            </form>
+          )}
         </div>
       ) : (
         <div className="bg-[#000000cc] border border-prime rounded-lg shadow-lg p-8 max-w-2xl w-full text-center">

@@ -1,36 +1,59 @@
 "use client";
 import { useState } from "react";
-import axios from "axios";
+import { requestForgotPasswordOtp, resetPasswordWithOtp } from "../utils/api";
 
 import NavbarLight from "../components/NavbarLight";
 import Footer from "../components/Footer";
 
-const API_BASE_URL = "http://localhost:8000";
-
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
+  const [sessionId, setSessionId] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleSendOtp = async (e) => {
     e.preventDefault();
     setMessage("");
     setError("");
     setLoading(true);
     try {
-      // Call your backend endpoint for forgot password
-      const response = await axios.post(`${API_BASE_URL}/forgot-password`, {
-        email,
-      });
-      setMessage(response.data.msg || "Password reset link sent to your email!");
+      const response = await requestForgotPasswordOtp(email);
+      setSessionId(response?.session_id || "");
+      setMessage(response?.message || "OTP sent to your email.");
     } catch (err) {
-      // Display error message from backend if available
-      setError(
-        err.response && err.response.data && err.response.data.msg
-          ? err.response.data.msg
-          : "An error occurred. Please try again."
-      );
+      setError(err?.message || err?.detail || "Could not send OTP.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReset = async (e) => {
+    e.preventDefault();
+    setMessage("");
+    setError("");
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await resetPasswordWithOtp(sessionId, otp, newPassword);
+      setMessage(response?.message || "Password updated successfully.");
+      setEmail("");
+      setSessionId("");
+      setOtp("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setError(err?.message || err?.detail || "Could not reset password.");
     } finally {
       setLoading(false);
     }
@@ -52,7 +75,8 @@ const ForgotPassword = () => {
           <p className="text-red-700">{error}</p>
         </div>
       )}
-      <form onSubmit={handleSubmit} className="max-w-md mx-auto bg-[#252525] p-4 rounded-lg border border-prime ">
+      {!sessionId ? (
+      <form onSubmit={handleSendOtp} className="max-w-md mx-auto bg-[#252525] p-4 rounded-lg border border-prime ">
         <div className="mb-4">
           <label htmlFor="email" className="block text-gray-700">
             Email Address
@@ -72,9 +96,51 @@ const ForgotPassword = () => {
           disabled={loading}
           className="bg-prime text-white px-4 py-2 rounded"
         >
-          {loading ? "Sending..." : "Send Reset Link"}
+          {loading ? "Sending..." : "Send 4-digit OTP"}
         </button>
       </form>
+      ) : (
+      <form onSubmit={handleReset} className="max-w-md mx-auto bg-[#252525] p-4 rounded-lg border border-prime space-y-3">
+        <div>
+          <label className="block text-gray-700">4-digit OTP</label>
+          <input
+            type="text"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            className="w-full px-3 py-2 border border-gray-300 rounded text-black"
+            placeholder="1234"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-gray-700">New Password</label>
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded text-black"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-gray-700">Confirm New Password</label>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded text-black"
+            required
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={loading || otp.length !== 4}
+          className="bg-prime text-white px-4 py-2 rounded"
+        >
+          {loading ? "Resetting..." : "Reset Password"}
+        </button>
+      </form>
+      )}
     </div>
  </main>
  <Footer/>
